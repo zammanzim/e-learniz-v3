@@ -54,8 +54,10 @@
       <!-- ================= STEP 1: PILIH KELAS ================= -->
       <div class="step-pane active" id="paneStep1">
         <div class="login-class-list" id="classListContainer">
-          <div style="text-align:center;padding:1.5rem 0;color:var(--text-muted);font-weight:600;">
-            <i class="fa-solid fa-spinner fa-spin"></i> Memuat daftar kelas...
+          <div class="sk-login-list" role="status" aria-label="Memuat daftar kelas...">
+            <span class="sk sk-rounded" style="height:52px;"></span>
+            <span class="sk sk-rounded" style="height:52px;"></span>
+            <span class="sk sk-rounded" style="height:52px;"></span>
           </div>
         </div>
 
@@ -83,14 +85,28 @@
         </div>
 
         <div class="student-list-scroll" id="studentListContainer">
-          <div style="text-align:center;padding:1.5rem 0;color:var(--text-muted);font-weight:600;">
-            <i class="fa-solid fa-spinner fa-spin"></i> Memuat daftar siswa...
+          <div class="sk-login-list" role="status" aria-label="Memuat daftar siswa...">
+            <span class="sk sk-rounded" style="height:46px;"></span>
+            <span class="sk sk-rounded" style="height:46px;"></span>
+            <span class="sk sk-rounded" style="height:46px;"></span>
+            <span class="sk sk-rounded" style="height:46px;"></span>
+            <span class="sk sk-rounded" style="height:46px;"></span>
           </div>
         </div>
       </div>
 
       <!-- ================= STEP 3: KONFIRMASI ================= -->
       <div class="step-pane" id="paneStep3">
+        <!-- Skeleton singkat saat transisi setelah memilih nama -->
+        <div class="confirm-skeleton" id="confirmSkeleton" style="display:none;" role="status" aria-label="Memuat konfirmasi...">
+          <span class="sk sk-circle" style="width:72px;height:72px;"></span>
+          <span class="sk sk-pill" style="width:110px;height:22px;"></span>
+          <span class="sk" style="width:60%;height:24px;"></span>
+          <span class="sk" style="width:80%;height:13px;"></span>
+          <span class="sk sk-rounded" style="width:100%;height:48px;margin-top:0.6rem;"></span>
+          <span class="sk sk-rounded" style="width:100%;height:42px;"></span>
+        </div>
+        <div id="confirmContent">
         <div class="confirm-profile-box">
           <div class="confirm-avatar" id="confirmAvatar">S</div>
           <span class="confirm-class-pill" id="confirmClassPill">
@@ -107,6 +123,7 @@
         <button type="button" class="btn-secondary btn-block" id="btnChangeStudent" style="margin-top:0.65rem;">
           Bukan saya, ganti nama
         </button>
+        </div>
       </div>
 
       <!-- ================= KHUSUS STAF / VERIFIKASI AKUN ================= -->
@@ -227,9 +244,12 @@
       }
 
       // Transition manager between steps
+      let confirmSkeletonToken = 0;
+
       function goToStep(step, origin) {
         hideAlert();
         currentStep = step;
+        if (step !== 3) confirmSkeletonToken++;
 
         // Hide all panes
         [paneStep1, paneStep2, paneStep3, paneStaff].forEach((p) => p.classList.remove('active'));
@@ -276,6 +296,20 @@
             confirmAvatar.textContent = (String(nick).charAt(0) || 'S').toUpperCase();
             confirmClassName.textContent = selectedClass ? selectedClass.name : 'Kelas';
             confirmGreeting.textContent = `Halo, ${nick}!`;
+          }
+
+          // Tampilkan skeleton sebentar setelah memilih nama, lalu munculkan konfirmasi.
+          const skEl = document.getElementById('confirmSkeleton');
+          const contentEl = document.getElementById('confirmContent');
+          if (skEl && contentEl) {
+            const token = ++confirmSkeletonToken;
+            skEl.style.display = 'flex';
+            contentEl.style.display = 'none';
+            setTimeout(() => {
+              if (token !== confirmSkeletonToken) return;
+              skEl.style.display = 'none';
+              contentEl.style.display = '';
+            }, 450);
           }
         } else if (step === 'staff') {
           staffOriginStep = origin || 1;
@@ -354,22 +388,23 @@
               selectedClass = found;
               window.ELearnizAuth.setActiveClassSlug(found.slug);
 
-              // Load students for this class
-              studentListContainer.innerHTML = `
-                <div style="text-align:center;padding:2rem 0;color:var(--text-muted);font-weight:600;">
-                  <i class="fa-solid fa-spinner fa-spin"></i> Mengambil daftar siswa ${esc(found.name)}...
-                </div>
-              `;
+              // Load students for this class. Flag loading dipasang SEBELUM goToStep(2)
+              // karena goToStep memanggil renderStudentList (kalau tidak, muncul "Nama tidak ditemukan").
+              studentsLoading = true;
+              students = [];
               goToStep(2);
 
               try {
                 students = await window.ELearnizDB.listUsers(found.id);
-                renderStudentList(students);
               } catch (err) {
                 students = [];
+                studentsLoading = false;
                 showAlert('Gagal mengambil daftar siswa. Coba lagi.');
                 renderStudentList([]);
+                return;
               }
+              studentsLoading = false;
+              renderStudentList(students);
             });
           });
         }
@@ -382,7 +417,21 @@
       }
 
       // Render Student List in Step 2
+      let studentsLoading = false;
+
       function renderStudentList(list) {
+        if (studentsLoading) {
+          studentListContainer.innerHTML = `
+            <div class="sk-login-list" role="status" aria-label="Mengambil daftar siswa...">
+              <span class="sk sk-rounded" style="height:46px;"></span>
+              <span class="sk sk-rounded" style="height:46px;"></span>
+              <span class="sk sk-rounded" style="height:46px;"></span>
+              <span class="sk sk-rounded" style="height:46px;"></span>
+              <span class="sk sk-rounded" style="height:46px;"></span>
+            </div>
+          `;
+          return;
+        }
         if (!list || list.length === 0) {
           studentListContainer.innerHTML = `
             <div class="student-empty-state">

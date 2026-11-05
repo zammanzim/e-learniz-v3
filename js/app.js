@@ -71,7 +71,15 @@
       }
     });
 
-    await loadClassAndData();
+    try {
+      await loadClassAndData();
+    } catch (err) {
+      console.error('Gagal memuat data awal:', err);
+      if (window.ELearnizSkeleton) window.ELearnizSkeleton.clear();
+      showToast('Gagal memuat data. Periksa koneksi lalu segarkan halaman.', 'error');
+    } finally {
+      if (window.ELearnizSkeleton) window.ELearnizSkeleton.hide();
+    }
     handleRouteFromHash();
   }
 
@@ -155,14 +163,8 @@
     const loginBtn = document.getElementById('dropdownLoginBtn');
     const logoutBtn = document.getElementById('dropdownLogoutBtn');
 
-    const T = window.ELearnizTime;
-    const wibHour = T ? T.getParts(new Date()).hour : new Date().getHours();
-    const greetingWord = wibHour < 11
-      ? 'Selamat pagi'
-      : (wibHour < 15 ? 'Selamat siang' : (wibHour < 18 ? 'Selamat sore' : 'Selamat malam'));
-
-    if (greetingEl) greetingEl.textContent = `${greetingWord}, ${nickname}`;
-    if (welcomeTextEl) welcomeTextEl.textContent = `${greetingWord}, ${nickname}! 👋`;
+    if (greetingEl) greetingEl.textContent = `Haii, ${nickname}`;
+    if (welcomeTextEl) welcomeTextEl.textContent = `Haii, ${nickname}! 👋`;
     if (avatarEl) avatarEl.textContent = nickname.charAt(0).toUpperCase();
     if (ddName) ddName.textContent = fullName;
     if (ddRole) {

@@ -136,16 +136,29 @@
           if (caretIcon) caretIcon.classList.remove('rotate');
         }
 
-        // Ambil data terbaru setiap modal dibuka.
-        await refreshVisitors();
-        if (countEl) countEl.textContent = String(cachedVisitors.length);
-        renderVisitorBody(modalBody);
+        // Buka modal langsung dengan skeleton, lalu isi dengan data terbaru.
+        modalBody.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:0.55rem;" role="status" aria-label="Memuat pengunjung...">
+            ${[0, 1, 2].map(() => `
+              <div style="display:flex;align-items:center;gap:0.65rem;padding:0.6rem 0.85rem;border-radius:12px;border:1px solid var(--border-color);">
+                <span class="sk sk-circle" style="width:32px;height:32px;"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:6px;">
+                  <span class="sk" style="width:55%;height:12px;"></span>
+                  <span class="sk" style="width:30%;height:10px;"></span>
+                </span>
+              </div>`).join('')}
+          </div>`;
 
         if (window.ELearnizUI && window.ELearnizUI.popup) {
           window.ELearnizUI.popup.open(modal);
         } else {
           modal.classList.add('open');
         }
+
+        // Ambil data terbaru setiap modal dibuka.
+        await refreshVisitors();
+        if (countEl) countEl.textContent = String(cachedVisitors.length);
+        renderVisitorBody(modalBody);
       };
     }
   }

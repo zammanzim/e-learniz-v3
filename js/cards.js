@@ -594,9 +594,10 @@
         : '';
       const priority = card.subject_id ? priorityMap[String(card.subject_id)] : null;
       const priorityLabel = priority === 'today' ? 'Jadwal Hari Ini' : (priority === 'tomorrow' ? 'Jadwal Besok' : '');
+      const hasTaskClass = card.has_task ? 'has-task' : 'no-task';
 
       return `
-        <article class="course-card ${statusClass} ${isPinnedClass}" data-card-id="${card.id}" ${borderAccentStyle}>
+        <article class="course-card ${statusClass} ${isPinnedClass} ${hasTaskClass}" data-card-id="${card.id}" ${borderAccentStyle}>
           ${isAdmin ? `
             <div class="card-menu-container" id="cardMenuContainer-${card.id}">
               <button type="button" class="card-dots-btn" data-action="toggle-menu" data-id="${card.id}" title="Opsi Kartu">
@@ -693,7 +694,10 @@
 
     // Open card detail modal on card click
     container.querySelectorAll('.course-card[data-card-id]').forEach((article) => {
-      article.addEventListener('click', () => {
+      article.addEventListener('click', (e) => {
+        if (e && e.target && e.target.closest && (e.target.closest('.card-menu-container') || e.target.closest('.task-btn'))) {
+          return;
+        }
         const id = article.getAttribute('data-card-id');
         const cardObj = cards.find((c) => String(c.id) === String(id));
         if (cardObj && onOpenDetail) onOpenDetail(cardObj);
