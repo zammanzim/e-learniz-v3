@@ -87,12 +87,8 @@
         <i class="${TOAST_ICONS[cleanType]}"></i>
       </div>
       <div class="u-toast-msg">${escapeHtml(message)}</div>
-      <button type="button" class="u-toast-close" title="Tutup">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
     `;
 
-    const closeBtn = toast.querySelector('.u-toast-close');
     let timerId = null;
 
     const dismiss = () => {
@@ -106,12 +102,6 @@
     };
 
     toast.addEventListener('click', dismiss);
-    if (closeBtn) {
-      closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dismiss();
-      });
-    }
 
     container.appendChild(toast);
 

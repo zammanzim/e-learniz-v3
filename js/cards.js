@@ -162,10 +162,12 @@
       pendingTaskCount = 0,
       subjects = [],
       isAdmin = false,
+      isEditing = false,
       onShortcutTugas,
       onClickSubject,
       onSaveDailyCard,
-      onSelectDay
+      onSelectDay,
+      onToggleEditMode
     } = options || {};
 
     const smart = getSmartSchoolDay();
@@ -376,14 +378,20 @@
           el.onkeydown = null;
         }
       });
+      if (typeof onToggleEditMode === 'function') {
+        onToggleEditMode(active);
+      }
     };
+
+    if (isEditing) {
+      setInlineEditMode(true);
+    }
 
     // Navigasi tab hari pada Daily Card.
     const dayTabs = container.querySelector('#dcDayTabs');
     if (dayTabs && typeof onSelectDay === 'function') {
       dayTabs.querySelectorAll('[data-dc-day]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          if (cardEl.classList.contains('edit-mode-on')) return;
           onSelectDay(Number(btn.getAttribute('data-dc-day')));
         });
       });
@@ -398,7 +406,8 @@
     if (cancelEditBtn) {
       cancelEditBtn.addEventListener('click', () => {
         setInlineEditMode(false);
-        renderDailyCard(container, options);
+        if (typeof onToggleEditMode === 'function') onToggleEditMode(false);
+        renderDailyCard(container, { ...options, isEditing: false });
       });
     }
 
@@ -500,6 +509,7 @@
         try {
           await onSaveDailyCard(activeDayNum, payload);
           setInlineEditMode(false);
+          if (typeof onToggleEditMode === 'function') onToggleEditMode(false);
         } catch (err) {
           saveEditBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
           saveEditBtn.disabled = false;
@@ -516,11 +526,14 @@
     const clean = images.filter(Boolean);
     if (clean.length === 0) return '';
     const countClass = `count-${Math.min(clean.length, 4)}`;
+    const displayList = clean.slice(0, 4);
+    const extraCount = clean.length - 4;
     return `
       <div class="photo-grid ${countClass}">
-        ${clean.slice(0, 4).map((url) => `
-          <div class="photo-item">
+        ${displayList.map((url, idx) => `
+          <div class="photo-item photo-wrapper" data-photo-index="${idx}" title="Klik untuk lihat foto">
             <img src="${escapeHtml(url)}" alt="Lampiran Materi" loading="lazy" decoding="async" />
+            ${(idx === 3 && extraCount > 0) ? `<div class="more-overlay">+${extraCount}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -700,7 +713,11 @@
         }
         const id = article.getAttribute('data-card-id');
         const cardObj = cards.find((c) => String(c.id) === String(id));
-        if (cardObj && onOpenDetail) onOpenDetail(cardObj);
+        if (!cardObj || !onOpenDetail) return;
+
+        const photoWrapper = e.target.closest('.photo-item, [data-photo-index]');
+        const photoIdx = photoWrapper ? parseInt(photoWrapper.getAttribute('data-photo-index') || '0', 10) : 0;
+        onOpenDetail(cardObj, photoIdx);
       });
     });
   }

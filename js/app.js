@@ -22,6 +22,7 @@
     activeView: 'home', // 'home' | 'tugas' | 'subject'
     activeSubjectId: null,
     selectedDayOfWeek: null,
+    isDailyCardEditing: false,
 
     // Tugas filter state
     taskTab: 'pending', // 'pending' | 'done' | 'all'
@@ -351,6 +352,9 @@
 
   function switchView(viewName, subjectId, updateHash = true) {
     state.activeView = viewName;
+    if (viewName !== 'home') {
+      state.isDailyCardEditing = false;
+    }
     if (viewName === 'subject') {
       state.activeSubjectId = subjectId || null;
     }
@@ -495,8 +499,12 @@
       pendingTaskCount,
       subjects: state.subjects,
       isAdmin: state.isAdmin,
+      isEditing: Boolean(state.isDailyCardEditing),
       onShortcutTugas: () => switchView('tugas'),
       onClickSubject: (sid) => switchView('subject', sid),
+      onToggleEditMode: (active) => {
+        state.isDailyCardEditing = active;
+      },
       onSelectDay: (dayNum) => {
         state.selectedDayOfWeek = Number(dayNum);
         renderAllViews();
@@ -505,6 +513,7 @@
         try {
           await window.ELearnizDB.updateScheduleDay(state.activeClass.id, dayNum, payload);
           state.scheduleDays = await window.ELearnizDB.getScheduleWithPeriods(state.activeClass.id);
+          state.isDailyCardEditing = false;
           renderAllViews();
           showToast('Daily Card berhasil diperbarui!', 'success');
         } catch (err) {
@@ -1040,130 +1049,412 @@
     }
   }
 
-  function openCardDetailModal(card) {
+  /* ------------------------------------------------------------------------
+     DETAIL MODAL & PHOTO SLIDER (Adapted from E-Learniz v2 Architecture)
+     ------------------------------------------------------------------------ */
+  let currentViewerPhotos = [];
+  let currentViewerIndex = 0;
+
+  function updateSliderUI() {
+    const imgEl = document.getElementById('detailImg');
+    const nav = document.getElementById('sliderNavBtns');
+    const wrapper = document.getElementById('detailSliderWrapper');
+    const counterPill = document.getElementById('photoCounterTag');
+    const currentIdxEl = document.getElementById('pvCurrentIdx');
+    const totalIdxEl = document.getElementById('pvTotalIdx');
+    const dotsContainer = document.getElementById('sliderDotsContainer');
+
+    if (!imgEl || !wrapper) return;
+
+    if (currentViewerPhotos.length === 0) {
+      imgEl.src = '';
+      if (nav) nav.style.display = 'none';
+      if (counterPill) counterPill.style.display = 'none';
+      if (dotsContainer) dotsContainer.style.display = 'none';
+      return;
+    }
+
+    if (counterPill) {
+      counterPill.style.display = 'inline-flex';
+      if (currentIdxEl) currentIdxEl.textContent = String(currentViewerIndex + 1);
+      if (totalIdxEl) totalIdxEl.textContent = String(currentViewerPhotos.length);
+    }
+
+    wrapper.classList.add('loading');
+    const currentUrl = currentViewerPhotos[currentViewerIndex];
+
+    imgEl.onload = () => {
+      wrapper.classList.remove('loading');
+    };
+    imgEl.onerror = () => {
+      wrapper.classList.remove('loading');
+    };
+    imgEl.src = currentUrl;
+    if (imgEl.complete && imgEl.naturalWidth > 0) {
+      wrapper.classList.remove('loading');
+    }
+
+    const isMulti = currentViewerPhotos.length > 1;
+    if (nav) {
+      nav.style.display = isMulti ? 'flex' : 'none';
+      if (isMulti) {
+        const btnPrev = nav.querySelector('.prev-btn');
+        const btnNext = nav.querySelector('.next-btn');
+        if (btnPrev) btnPrev.style.visibility = (currentViewerIndex === 0) ? 'hidden' : 'visible';
+        if (btnNext) btnNext.style.visibility = (currentViewerIndex === currentViewerPhotos.length - 1) ? 'hidden' : 'visible';
+      }
+    }
+
+    // Interactive Carousel Dots
+    if (dotsContainer) {
+      if (isMulti) {
+        dotsContainer.style.display = 'flex';
+        dotsContainer.innerHTML = currentViewerPhotos.map((_, idx) => `
+          <button type="button" class="slider-dot ${idx === currentViewerIndex ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Lompat ke foto ${idx + 1}"></button>
+        `).join('');
+
+        dotsContainer.querySelectorAll('.slider-dot').forEach((dot) => {
+          dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetIdx = parseInt(dot.getAttribute('data-dot-idx'), 10);
+            if (!isNaN(targetIdx) && targetIdx !== currentViewerIndex) {
+              currentViewerIndex = targetIdx;
+              updateSliderUI();
+            }
+          });
+        });
+      } else {
+        dotsContainer.style.display = 'none';
+      }
+    }
+  }
+
+  function nextSlide(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (currentViewerIndex < currentViewerPhotos.length - 1) {
+      currentViewerIndex++;
+      updateSliderUI();
+    }
+  }
+
+  function prevSlide(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (currentViewerIndex > 0) {
+      currentViewerIndex--;
+      updateSliderUI();
+    }
+  }
+
+  // Swipe gesture for detail photo slider
+  (function initPhotoSliderSwipe() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isSwiping = false;
+
+    document.addEventListener('touchstart', (e) => {
+      const modal = document.getElementById('cardDetailModal');
+      if (!modal || !modal.classList.contains('is-open')) return;
+      if (!e.target.closest('#detailSliderWrapper')) return;
+      if (currentViewerPhotos.length <= 1) return;
+
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      isSwiping = true;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (!isSwiping) return;
+      isSwiping = false;
+
+      const modal = document.getElementById('cardDetailModal');
+      if (!modal || !modal.classList.contains('is-open')) return;
+      if (currentViewerPhotos.length <= 1) return;
+
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+
+      if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
+
+      if (dx < 0) nextSlide();
+      else prevSlide();
+    }, { passive: true });
+  })();
+
+  // Keyboard navigation for photo slider
+  document.addEventListener('keydown', (e) => {
     const modal = document.getElementById('cardDetailModal');
-    const titleEl = document.getElementById('detailModalTitle');
-    const bodyEl = document.getElementById('detailModalBody');
-    const photoViewerEl = document.getElementById('detailPhotoViewer');
-    const pvImg = document.getElementById('pvImageElem');
-    const pvTitle = document.getElementById('pvPhotoTitle');
-    const pvBackBtn = document.getElementById('pvBackBtn');
-    const pvFullscreenBtn = document.getElementById('pvFullscreenBtn');
+    if (!modal || !modal.classList.contains('is-open')) return;
+    if (currentViewerPhotos.length <= 1) return;
 
-    if (!modal || !bodyEl) return;
+    if (e.key === 'ArrowRight') {
+      nextSlide();
+    } else if (e.key === 'ArrowLeft') {
+      prevSlide();
+    }
+  });
 
-    // Reset modes: show normal detail content, hide photo viewer
-    bodyEl.style.display = '';
-    if (photoViewerEl) photoViewerEl.classList.remove('active', 'is-closing');
+  // Window resize handler for mobile sheet
+  window.addEventListener('resize', () => {
+    const modal = document.getElementById('cardDetailModal');
+    if (!modal || !modal.classList.contains('is-open')) return;
+    const infoSection = document.getElementById('detailInfoSection');
+    const toggleInfoBtn = document.getElementById('toggleInfoBtn');
+    if (!infoSection) return;
+
+    if (window.innerWidth > 768) {
+      infoSection.classList.remove('hidden-mobile', 'full-screen');
+      if (toggleInfoBtn) toggleInfoBtn.style.display = 'none';
+    } else if (currentViewerPhotos.length > 0) {
+      if (infoSection.classList.contains('hidden-mobile') && toggleInfoBtn) {
+        toggleInfoBtn.style.display = 'flex';
+      }
+    }
+  });
+
+  function openCardDetailModal(card, photoIndex = 0) {
+    const modal = document.getElementById('cardDetailModal');
+    const detailBox = document.getElementById('cardDetailBox');
+    const infoSection = document.getElementById('detailInfoSection');
+    const toggleInfoBtn = document.getElementById('toggleInfoBtn');
+    const infoContent = document.getElementById('detailInfoContent');
+    const sheetToggleBtn = document.getElementById('sheetToggleBtn');
+    const sheetCloseBtn = document.getElementById('sheetCloseBtn');
+    const prevBtn = document.getElementById('slidePrevBtn');
+    const nextBtn = document.getElementById('slideNextBtn');
+
+    if (!modal || !detailBox || !infoContent) return;
+
+    let photos = [];
+    if (card.images) {
+      if (Array.isArray(card.images)) {
+        photos = card.images.filter(Boolean);
+      } else if (typeof card.images === 'string') {
+        try {
+          const parsed = JSON.parse(card.images);
+          photos = Array.isArray(parsed) ? parsed.filter(Boolean) : [card.images];
+        } catch {
+          photos = [card.images];
+        }
+      }
+    }
+
+    if (photos.length === 0) {
+      detailBox.classList.add('text-only-mode');
+    } else {
+      detailBox.classList.remove('text-only-mode');
+    }
+
+    const isMobile = window.innerWidth <= 768;
+    if (infoSection) {
+      if (isMobile && photos.length > 0) {
+        infoSection.classList.add('hidden-mobile');
+        infoSection.classList.remove('full-screen');
+        if (toggleInfoBtn) toggleInfoBtn.style.display = 'flex';
+      } else {
+        infoSection.classList.remove('hidden-mobile', 'full-screen');
+        if (toggleInfoBtn) toggleInfoBtn.style.display = 'none';
+      }
+    }
+
+    if (sheetToggleBtn) {
+      const icon = sheetToggleBtn.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+    }
+
+    currentViewerPhotos = photos;
+    currentViewerIndex = (photoIndex >= 0 && photoIndex < photos.length) ? photoIndex : 0;
+    updateSliderUI();
 
     const subj = card.subject_id ? state.subjectsMap[String(card.subject_id)] : null;
     const isDone = state.completedTaskIds.has(String(card.id));
-    const dueLabel = window.ELearnizCards.formatDueLabel(card.due_date);
-    const esc = window.ELearnizCards.escapeHtml;
-
-    if (titleEl) {
-      titleEl.textContent = subj ? `${subj.name}` : 'Pengumuman Kelas';
+    const dueLabel = (window.ELearnizCards && window.ELearnizCards.formatDueLabel)
+      ? window.ELearnizCards.formatDueLabel(card.due_date)
+      : '';
+    let dueBadgeLabel = null;
+    if (dueLabel) {
+      if (dueLabel.toLowerCase().includes('hari ini')) dueBadgeLabel = 'Tenggat Hari Ini';
+      else if (dueLabel.toLowerCase().includes('besok')) dueBadgeLabel = 'Tenggat Besok';
     }
+    const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
 
-    const images = Array.isArray(card.images) ? card.images.filter(Boolean) : [];
+    // Helper URL autolink and structured paragraph/list formatter
+    const formatContent = (text) => {
+      if (!text) return '';
+      const processLinks = (str) => {
+        return str.replace(/(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g, (url) => {
+          let label = url;
+          try {
+            const parsed = new URL(url);
+            label = parsed.hostname + (parsed.pathname.length > 1 ? parsed.pathname.slice(0, 15) + '…' : '');
+          } catch (_) {}
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="detail-link-chip"><i class="fa-solid fa-arrow-up-right-from-square"></i> <span>${label}</span></a>`;
+        });
+      };
 
-    bodyEl.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:0.9rem;">
-        <div>
-          <h2 style="font-family:'Fredoka',sans-serif;font-size:1.35rem;color:var(--text-main);margin-bottom:0.25rem;">
-            ${esc(card.big_title || card.title)}
-          </h2>
-          ${card.title && card.big_title ? `<h4 style="color:var(--accent);font-size:0.95rem;">${esc(card.title)}</h4>` : ''}
-        </div>
+      const rawLines = text.split('\n');
+      const formatted = [];
+      let inList = false;
 
-        ${card.content ? `
-          <div style="background:var(--bg-muted);padding:1rem;border-radius:14px;border:1px solid var(--border-color);line-height:1.65;font-size:0.9rem;color:var(--text-main);white-space:pre-line;">${esc(card.content)}</div>
+      rawLines.forEach((rawLine) => {
+        const trimmed = rawLine.trim();
+        const bulletMatch = /^[-*•]\s+(.*)$/.exec(trimmed);
+        const numMatch = /^(\d+)[.)]\s+(.*)$/.exec(trimmed);
+
+        if (bulletMatch) {
+          if (!inList) {
+            formatted.push('<ul class="detail-styled-list">');
+            inList = true;
+          }
+          formatted.push(`<li><span class="list-bullet"><i class="fa-solid fa-circle-dot"></i></span><span class="list-text">${processLinks(esc(bulletMatch[1]))}</span></li>`);
+        } else if (numMatch) {
+          if (!inList) {
+            formatted.push('<ol class="detail-styled-list">');
+            inList = true;
+          }
+          formatted.push(`<li><span class="list-num">${numMatch[1]}</span><span class="list-text">${processLinks(esc(numMatch[2]))}</span></li>`);
+        } else {
+          if (inList) {
+            formatted.push('</ul>');
+            inList = false;
+          }
+          if (trimmed.length > 0) {
+            formatted.push(`<p class="detail-p">${processLinks(esc(rawLine))}</p>`);
+          } else {
+            formatted.push('<div class="detail-p-spacer"></div>');
+          }
+        }
+      });
+
+      if (inList) formatted.push('</ul>');
+      return formatted.join('');
+    };
+
+    infoContent.innerHTML = `
+      <div class="detail-header-badges">
+        ${subj ? `
+          <span class="detail-badge subject-badge" style="--subj-accent:${subj.color || 'var(--accent)'}; border-left-color: ${subj.color || 'var(--accent)'};">
+            <i class="fa-solid ${esc(subj.icon || 'fa-book')}"></i>
+            <span>${esc(subj.name)}</span>
+          </span>
         ` : ''}
 
-        ${images.length > 0 ? `
-          <div>
-            <div style="font-size:0.8rem;font-weight:700;color:var(--text-secondary);margin-bottom:0.4rem;">
-              <i class="fa-solid fa-images"></i> Foto & Lampiran (${images.length}):
-            </div>
-            <div class="detail-photo-grid">
-              ${images.map((url, imgIdx) => `
-                <div class="detail-photo-thumb" data-photo-url="${esc(url)}" data-photo-idx="${imgIdx}" title="Klik untuk lihat foto lebih besar">
-                  <img src="${esc(url)}" alt="Lampiran ${imgIdx + 1}" loading="lazy" decoding="async" />
-                  <div class="thumb-zoom-badge"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
+        <span class="detail-badge type-badge ${card.has_task ? 'is-task' : 'is-info'}">
+          <i class="fa-solid ${card.has_task ? 'fa-list-check' : 'fa-bullhorn'}"></i>
+          <span>${card.has_task ? 'Tugas Kelas' : 'Pengumuman'}</span>
+        </span>
 
-        ${(card.small || dueLabel) ? `
-          <div style="font-size:0.8rem;color:var(--text-muted);font-weight:600;">
-            <i class="fa-regular fa-clock"></i> ${esc([card.small, dueLabel].filter(Boolean).join(' · '))}
-          </div>
-        ` : ''}
-
-        ${card.has_task ? `
-          <div style="padding-top:0.5rem;border-top:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:0.82rem;font-weight:700;color:var(--text-secondary);">Status Pengerjaan:</span>
-            <button type="button" class="btn-primary" id="modalToggleTaskBtn" style="background:${isDone ? 'var(--mint-green)' : 'var(--accent-gradient)'};">
-              <i class="fa-solid ${isDone ? 'fa-circle-check' : 'fa-check'}"></i>
-              <span>${isDone ? 'Sudah Selesai' : 'Tandai Selesai Sekarang'}</span>
-            </button>
-          </div>
+        ${dueBadgeLabel ? `
+          <span class="detail-badge priority-badge ${dueBadgeLabel.includes('Hari Ini') ? 'is-today' : 'is-tomorrow'}">
+            <i class="fa-solid fa-bolt"></i>
+            <span>${dueBadgeLabel}</span>
+          </span>
         ` : ''}
       </div>
+
+      <div class="detail-title-block">
+        <h2 class="detail-big-title">
+          ${esc(card.big_title || card.title || 'Tanpa Judul')}
+        </h2>
+        ${(card.title && card.big_title) ? `<div class="detail-sub-title">${esc(card.title)}</div>` : ''}
+      </div>
+
+      ${card.content ? `
+        <div class="detail-body-card">
+          ${formatContent(card.content)}
+        </div>
+      ` : ''}
+
+      ${(card.small || dueLabel) ? `
+        <div class="detail-meta-chip">
+          <i class="fa-regular fa-clock"></i>
+          <span>${esc([card.small, dueLabel].filter(Boolean).join(' · '))}</span>
+        </div>
+      ` : ''}
+
+      ${card.has_task ? `
+        <div class="detail-task-card ${isDone ? 'is-completed' : 'is-pending'}">
+          <div class="detail-task-info">
+            <div class="detail-task-icon-circle">
+              <i class="fa-solid ${isDone ? 'fa-circle-check' : 'fa-list-check'}"></i>
+            </div>
+            <div class="detail-task-meta-text">
+              <span class="task-card-title">${isDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas'}</span>
+              <span class="task-card-caption">${isDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.'}</span>
+            </div>
+          </div>
+          <button type="button" class="detail-task-cta-btn ${isDone ? 'completed-btn' : 'action-btn'}" id="modalToggleTaskBtn">
+            <i class="fa-solid ${isDone ? 'fa-rotate-left' : 'fa-check'}"></i>
+            <span>${isDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
+          </button>
+        </div>
+      ` : ''}
     `;
 
-    // Bind Photo Viewer Mode (Req 12)
-    bodyEl.querySelectorAll('.detail-photo-thumb').forEach((thumb) => {
-      thumb.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const photoUrl = thumb.getAttribute('data-photo-url');
-        if (!photoUrl || !photoViewerEl || !pvImg) return;
+    // Bind navigation & sheet controls
+    if (prevBtn) prevBtn.onclick = prevSlide;
+    if (nextBtn) nextBtn.onclick = nextSlide;
 
-        bodyEl.style.display = 'none';
-        photoViewerEl.classList.remove('is-closing');
-        photoViewerEl.classList.add('active');
-        pvImg.src = photoUrl;
-        if (pvTitle) pvTitle.textContent = card.big_title || 'Foto Lampiran';
-      });
-    });
-
-    if (pvBackBtn) {
-      pvBackBtn.onclick = () => {
-        if (!photoViewerEl || !photoViewerEl.classList.contains('active')) return;
-        photoViewerEl.classList.add('is-closing');
-        setTimeout(() => {
-          photoViewerEl.classList.remove('active', 'is-closing');
-          bodyEl.style.display = '';
-        }, 160);
+    if (toggleInfoBtn) {
+      toggleInfoBtn.onclick = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (infoSection) infoSection.classList.remove('hidden-mobile');
+        toggleInfoBtn.style.display = 'none';
       };
     }
 
-    if (pvFullscreenBtn && pvImg) {
-      pvFullscreenBtn.onclick = () => {
-        const target = document.getElementById('pvImageContainer') || pvImg;
-        if (target.requestFullscreen) {
-          target.requestFullscreen().catch(() => {});
-        } else if (target.webkitRequestFullscreen) {
-          target.webkitRequestFullscreen();
-        } else if (target.msRequestFullscreen) {
-          target.msRequestFullscreen();
+    if (sheetCloseBtn) {
+      sheetCloseBtn.onclick = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (infoSection) {
+          infoSection.classList.add('hidden-mobile');
+          infoSection.classList.remove('full-screen');
+        }
+        if (toggleInfoBtn) toggleInfoBtn.style.display = 'flex';
+        if (sheetToggleBtn) {
+          const icon = sheetToggleBtn.querySelector('i');
+          if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
         }
       };
     }
 
-    const modalBtn = bodyEl.querySelector('#modalToggleTaskBtn');
+    if (sheetToggleBtn) {
+      sheetToggleBtn.onclick = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!infoSection) return;
+        const isFull = infoSection.classList.toggle('full-screen');
+        const icon = sheetToggleBtn.querySelector('i');
+        if (icon) icon.className = isFull ? 'fa-solid fa-down-left-and-up-right-to-center' : 'fa-solid fa-up-right-and-down-left-from-center';
+      };
+    }
+
+    const modalBtn = infoContent.querySelector('#modalToggleTaskBtn');
     if (modalBtn) {
       modalBtn.addEventListener('click', async () => {
         await handleToggleTaskProgress(card.id);
-        window.ELearnizUI.popup.close(modal);
+        const updatedIsDone = state.completedTaskIds.has(String(card.id));
+        const taskCard = infoContent.querySelector('.detail-task-card');
+        if (taskCard) {
+          taskCard.className = `detail-task-card ${updatedIsDone ? 'is-completed' : 'is-pending'}`;
+          const iconCircle = taskCard.querySelector('.detail-task-icon-circle i');
+          if (iconCircle) iconCircle.className = `fa-solid ${updatedIsDone ? 'fa-circle-check' : 'fa-list-check'}`;
+          const title = taskCard.querySelector('.task-card-title');
+          if (title) title.textContent = updatedIsDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas';
+          const caption = taskCard.querySelector('.task-card-caption');
+          if (caption) caption.textContent = updatedIsDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.';
+        }
+        modalBtn.className = `detail-task-cta-btn ${updatedIsDone ? 'completed-btn' : 'action-btn'}`;
+        modalBtn.innerHTML = `
+          <i class="fa-solid ${updatedIsDone ? 'fa-rotate-left' : 'fa-check'}"></i>
+          <span>${updatedIsDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
+        `;
       });
     }
 
     window.ELearnizUI.popup.open(modal);
   }
+
+  // Expose for external navigation & backwards compatibility (like v2 openDetail)
+  window.openCardDetailModal = openCardDetailModal;
 
   /* ------------------------------------------------------------------------
      ADMIN CONTROLS (Create/Edit Card, Edit Subject Info, FAB)
@@ -1179,29 +1470,12 @@
   }
 
   function bindAdminControls() {
-    const fabContainer = document.getElementById('adminFabContainer');
     const fabMainBtn = document.getElementById('fabMainBtn');
-    const fabAddBtn = document.getElementById('fabAddBtn');
-    const fabEditToggleBtn = document.getElementById('fabEditToggleBtn');
 
-    if (fabMainBtn && fabContainer) {
+    if (fabMainBtn) {
       fabMainBtn.addEventListener('click', () => {
-        fabContainer.classList.toggle('open');
-      });
-    }
-
-    if (fabAddBtn) {
-      fabAddBtn.addEventListener('click', () => {
-        if (fabContainer) fabContainer.classList.remove('open');
-        const defaultKind = state.activeView === 'home' ? 'announcement' : 'subject';
-        openCreateCardModal(defaultKind, state.activeView === 'tugas');
-      });
-    }
-
-    if (fabEditToggleBtn) {
-      fabEditToggleBtn.addEventListener('click', () => {
-        if (fabContainer) fabContainer.classList.remove('open');
-        showToast('Klik menu tiga titik (⋮) di pojok kanan atas kartu untuk mengedit atau menghapus.', 'info');
+        // Klik FAB langsung membuka form tambah materi
+        openCreateCardModal('subject', false);
       });
     }
 
@@ -1525,7 +1799,9 @@
   }
 
   function openCreateCardModal(kind, forceTaskChecked) {
-    document.getElementById('cardFormTitle').textContent = 'Tambah Konten Baru';
+    document.getElementById('cardFormTitle').textContent = kind === 'subject'
+      ? (forceTaskChecked ? 'Tambah Tugas Baru' : 'Tambah Materi Pelajaran')
+      : 'Tambah Pengumuman Kelas';
     document.getElementById('cfId').value = '';
     document.getElementById('cfKind').value = kind || 'subject';
     document.getElementById('cfSubjectGroup').style.display = kind === 'announcement' ? 'none' : 'flex';

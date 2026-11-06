@@ -93,7 +93,9 @@
   }
 
   function chips() {
-    return repeat(5, (i) => b(`${[110, 90, 100, 84, 96][i]}px`, '32px', 'sk-pill'));
+    return `<div class="sk-row sk-wrap sk-gap-sm sk-fx" ${ARIA}>${
+      repeat(5, (i) => b(`${[110, 90, 100, 84, 96][i]}px`, '32px', 'sk-pill'))
+    }</div>`;
   }
 
   function subjectCard() {
@@ -168,7 +170,22 @@
     }
   }
 
+  /* Deteksi perangkat low-end: CPU <= 4 core, RAM <= 2GB, atau mode hemat data.
+     Di perangkat ini sweep diganti denyut opacity yang jauh lebih ringan (lihat .sk-lite di CSS). */
+  function detectLite() {
+    try {
+      const nav = navigator;
+      const conn = nav.connection || {};
+      const lowCpu = nav.hardwareConcurrency && nav.hardwareConcurrency <= 4;
+      const lowMem = nav.deviceMemory && nav.deviceMemory <= 2;
+      if (lowCpu || lowMem || conn.saveData) {
+        document.documentElement.classList.add('sk-lite');
+      }
+    } catch (_) { /* abaikan */ }
+  }
+
   function show() {
+    detectLite();
     document.body.classList.add('app-loading');
     applyEarlyRoute();
 

@@ -14,6 +14,14 @@
     (function () {
       const saved = localStorage.getItem('elearniz_theme') || 'light';
       document.documentElement.setAttribute('data-theme', saved);
+      // Perangkat low-end / hemat data: skeleton memakai denyut ringan, bukan sweep.
+      try {
+        const c = navigator.connection || {};
+        if ((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+            (navigator.deviceMemory && navigator.deviceMemory <= 2) || c.saveData) {
+          document.documentElement.classList.add('sk-lite');
+        }
+      } catch (_) {}
     })();
   </script>
 </head>
