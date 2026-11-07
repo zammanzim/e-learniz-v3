@@ -97,12 +97,12 @@
     }
 
     if (isIOS() && !isStandalone()) {
-      if (window.ELearnizUI && typeof window.ELearnizUI.alert === 'function') {
-        window.ELearnizUI.alert({
+      if (window.ELearnizUI && window.ELearnizUI.popup && typeof window.ELearnizUI.popup.alert === 'function') {
+        window.ELearnizUI.popup.alert({
           title: 'Install E-Learniz di iOS',
           message: 'Ketuk ikon Share (Bagikan) di bilah bawah Safari, lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).',
           type: 'info',
-          confirmText: 'Mengerti'
+          okText: 'Mengerti'
         });
       } else {
         alert('Untuk menginstal di iPhone/iPad:\nKetuk ikon Share (Bagikan) di browser lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).');
@@ -162,7 +162,7 @@
 
     window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register('./sw.js', { scope: './' })
+        .register('/sw.js', { scope: '/' })
         .then((reg) => {
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;

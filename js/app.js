@@ -1270,12 +1270,32 @@
     const dueLabel = (window.ELearnizCards && window.ELearnizCards.formatDueLabel)
       ? window.ELearnizCards.formatDueLabel(card.due_date)
       : '';
+    // Badge prioritas: hitung dari tanggal tenggat (WIB), bukan dari teks label,
+    // karena formatDueLabel() tidak pernah memuat kata "hari ini/besok".
     let dueBadgeLabel = null;
-    if (dueLabel) {
-      if (dueLabel.toLowerCase().includes('hari ini')) dueBadgeLabel = 'Tenggat Hari Ini';
-      else if (dueLabel.toLowerCase().includes('besok')) dueBadgeLabel = 'Tenggat Besok';
+    if (card.due_date) {
+      const dueDate = new Date(card.due_date);
+      if (!isNaN(dueDate.getTime())) {
+        const T = window.ELearnizTime;
+        const dueKey = T ? T.dateKey(dueDate) : dueDate.toDateString();
+        const nowMs = Date.now();
+        const todayKey = T ? T.dateKey(new Date(nowMs)) : new Date(nowMs).toDateString();
+        // Tambah 24 jam apa adanya aman karena WIB tidak mengenal DST.
+        const tomorrowKey = T ? T.dateKey(new Date(nowMs + 86400000)) : new Date(nowMs + 86400000).toDateString();
+        if (dueKey === todayKey) dueBadgeLabel = 'Tenggat Hari Ini';
+        else if (dueKey === tomorrowKey) dueBadgeLabel = 'Tenggat Besok';
+      }
     }
     const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
+    // Warna & icon dari DB wajib divalidasi sebelum masuk atribut style/class.
+    const safeColorFn = (window.ELearnizUI && window.ELearnizUI.safeColor)
+      ? window.ELearnizUI.safeColor
+      : (v) => (/^#[0-9a-fA-F]{3,8}$/.test(String(v || '')) ? String(v) : '#2563eb');
+    const safeIconCls = (icon) => {
+      const value = String(icon || '');
+      return /^fa-[a-z0-9-]+$/i.test(value) ? `fa-solid ${value}` : 'fa-solid fa-book';
+    };
+    const subjAccent = subj ? safeColorFn(subj.color) : '#2563eb';
 
     // Helper URL autolink and structured paragraph/list formatter
     const formatContent = (text) => {
@@ -1332,8 +1352,8 @@
     infoContent.innerHTML = `
       <div class="detail-header-badges">
         ${subj ? `
-          <span class="detail-badge subject-badge" style="--subj-accent:${subj.color || 'var(--accent)'}; border-left-color: ${subj.color || 'var(--accent)'};">
-            <i class="fa-solid ${esc(subj.icon || 'fa-book')}"></i>
+          <span class="detail-badge subject-badge" style="--subj-accent:${subjAccent}; border-left-color: ${subjAccent};">
+            <i class="${safeIconCls(subj && subj.icon)}"></i>
             <span>${esc(subj.name)}</span>
           </span>
         ` : ''}

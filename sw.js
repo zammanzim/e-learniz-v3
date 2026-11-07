@@ -7,7 +7,7 @@
    - Supabase Auth & Presign Worker: Network-Only (aman, tidak pernah di-cache)
    ========================================================================== */
 
-const CACHE_VERSION = 'v3.1.1';
+const CACHE_VERSION = 'v3.2.1';
 const SHELL_CACHE = `elearniz-shell-${CACHE_VERSION}`;
 const CDN_CACHE = `elearniz-cdn-${CACHE_VERSION}`;
 const DATA_CACHE = `elearniz-data-${CACHE_VERSION}`;
@@ -16,26 +16,26 @@ const MEDIA_CACHE = `elearniz-media-${CACHE_VERSION}`;
 const ACTIVE_CACHES = [SHELL_CACHE, CDN_CACHE, DATA_CACHE, MEDIA_CACHE];
 
 const APP_SHELL_FILES = [
-  './',
-  './manifest.json',
-  './manifest.webmanifest',
-  './css/style.css',
-  './js/skeleton.js',
-  './js/config.js',
-  './js/time.js',
-  './js/db.js',
-  './js/auth.js',
-  './js/ui.js',
-  './js/sidebar.js',
-  './js/visitor.js',
-  './js/cards.js',
-  './js/app.js',
-  './js/pwa.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-192.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png'
+  '/',
+  '/manifest.json',
+  '/manifest.webmanifest',
+  '/css/style.css',
+  '/js/skeleton.js',
+  '/js/config.js',
+  '/js/time.js',
+  '/js/db.js',
+  '/js/auth.js',
+  '/js/ui.js',
+  '/js/sidebar.js',
+  '/js/visitor.js',
+  '/js/cards.js',
+  '/js/app.js',
+  '/js/pwa.js',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png'
 ];
 
 // Bersihkan flag redirected pada Response agar Chrome WebAPK tidak gagal validasi navigasi
@@ -109,9 +109,11 @@ self.addEventListener('fetch', (event) => {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
   // 1. JANGAN PERNAH cache endpoint autentikasi Supabase atau Worker presign R2
+  //    (Catatan: jangan blokir *.workers.dev secara umum karena frontend sendiri jalan di e-learniz-v3.nizzcuy.workers.dev)
   if (
     url.pathname.includes('/auth/v1/') ||
-    url.hostname.endsWith('.workers.dev')
+    url.hostname.startsWith('elearniz-media-presign.') ||
+    url.pathname.endsWith('/presign')
   ) {
     return;
   }
@@ -197,7 +199,7 @@ self.addEventListener('fetch', (event) => {
           const cached = await caches.match(req, { ignoreSearch: true });
           if (cached) return cached;
           if (req.mode === 'navigate') {
-            return (await caches.match('./')) || (await caches.match('./index.html'));
+            return (await caches.match('/')) || (await caches.match('/index.html'));
           }
           throw new Error('Offline resource unavailable');
         })

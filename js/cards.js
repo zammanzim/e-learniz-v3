@@ -43,6 +43,12 @@
       .replace(/'/g, '&#39;');
   }
 
+  // Icon FontAwesome dari DB hanya boleh slug sederhana (fa-*), selebihnya fallback.
+  function safeFaIcon(icon) {
+    const value = String(icon || '');
+    return /^fa-[a-z0-9-]+$/i.test(value) ? `fa-solid ${value}` : 'fa-solid fa-book';
+  }
+
   // Samakan variasi nama mapel di jadwal dengan nama mapel di tabel subjects.
   // Contoh: "Bahasa Inggris" == "B. Inggris", "MTK" == "Matematika".
   function normalizeSubjectKey(value) {
@@ -638,7 +644,7 @@
 
           ${showSubjectOrigin && subj ? `
             <div class="card-subject-origin">
-              <i class="fa-solid ${escapeHtml(subj.icon || 'fa-book')}"></i>
+              <i class="${safeFaIcon(subj.icon)}"></i>
               <span>${escapeHtml(subj.name)}</span>
             </div>
           ` : ''}

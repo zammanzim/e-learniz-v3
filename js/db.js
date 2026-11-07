@@ -452,7 +452,7 @@
       try {
         const db = api();
         if (db) {
-          const { data } = await db.from('task_progress').select('card_id').eq('user_id', userId);
+          const { data } = await db.from('task_progress').select('card_id').eq('user_id', userId).eq('done', true);
           if (Array.isArray(data)) {
             data.forEach((r) => set.add(String(r.card_id)));
           }
@@ -483,11 +483,11 @@
             );
             if (error) throw error;
           } else {
-            const { error } = await db
-              .from('task_progress')
-              .delete()
-              .eq('user_id', userId)
-              .eq('card_id', Number(cardId));
+            // Jangan delete: anon tidak punya hak DELETE (RLS). Simpan done=false.
+            const { error } = await db.from('task_progress').upsert(
+              { user_id: userId, card_id: Number(cardId), done: false },
+              { onConflict: 'user_id,card_id' }
+            );
             if (error) throw error;
           }
         }

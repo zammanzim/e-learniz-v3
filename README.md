@@ -33,7 +33,7 @@ Portal belajar kelas statis tanpa build step: **HTML + CSS + vanilla JS + Supaba
 - **Staff/guru**: **wajib Supabase Auth** (email + password). Tidak ada lagi fallback `admin`/`guru` dari localStorage.
 - Alias username staf diatur di `js/config.js` (`V3_STAFF_EMAIL_ALIASES`).
 - `verifyStaffSession()` memverifikasi sesi Supabase + role staff di `v3.users` setiap halaman dimuat; localStorage palsu dibersihkan.
-- RLS tetap menjadi pengaman utama: tulis konten hanya untuk staff terautentikasi; siswa hanya boleh menulis `task_progress` & `visitors`.
+- RLS tetap menjadi pengaman utama: tulis konten hanya untuk staff terautentikasi; siswa hanya boleh menulis `task_progress` & `visitors` (insert/update, tanpa hak hapus — tombol "Tandai Belum Selesai" menyimpan `done=false`).
 - Semua teks dari database di-escape sebelum dirender; warna divalidasi agar tidak bisa injeksi CSS.
 
 ## Waktu & Zona WIB

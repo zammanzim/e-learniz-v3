@@ -284,21 +284,28 @@ create policy staff_write on v3.cards            for all to authenticated using 
 create policy staff_write on v3.schedule_days    for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
 create policy staff_write on v3.schedule_periods for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
 
--- fitur ringan siswa (centang tugas + log pengunjung): tulis bebas
+-- fitur ringan siswa (centang tugas + log pengunjung): tulis bebas (insert/update saja).
+-- DELETE sengaja TIDAK diberikan ke anon: uncheck tugas disimpan sebagai done=false.
+-- Hapus data hanya untuk staff (v3.is_staff()).
 create policy upsert_write on v3.task_progress for insert to anon, authenticated with check (true);
 create policy upsert_mod   on v3.task_progress for update to anon, authenticated using (true) with check (true);
-create policy upsert_del   on v3.task_progress for delete to anon, authenticated using (true);
+create policy staff_del    on v3.task_progress for delete to authenticated using (v3.is_staff());
 create policy upsert_write on v3.visitors      for insert to anon, authenticated with check (true);
 create policy upsert_mod   on v3.visitors      for update to anon, authenticated using (true) with check (true);
-create policy upsert_del   on v3.visitors      for delete to anon, authenticated using (true);
+create policy staff_del    on v3.visitors      for delete to authenticated using (v3.is_staff());
 
 -- ─────────────────────────────────────────────
 -- GRANT (schema custom butuh grant eksplisit buat PostgREST)
 -- ─────────────────────────────────────────────
+-- revoke eksplisit: grant tidak mencabut hak DELETE anon yang mungkin
+-- sudah diberikan versi schema sebelumnya (database yang sudah jalan).
+revoke delete on v3.task_progress, v3.visitors from anon;
+
 grant select on v3.classes, v3.users, v3.subjects, v3.cards, v3.task_progress, v3.visitors,
     v3.schedule_days, v3.schedule_periods
     to anon, authenticated;
-grant insert, update, delete on v3.task_progress, v3.visitors to anon, authenticated;
+grant insert, update on v3.task_progress, v3.visitors to anon;
+grant insert, update, delete on v3.task_progress, v3.visitors to authenticated;
 grant insert, update, delete on v3.classes, v3.users, v3.subjects, v3.cards,
     v3.schedule_days, v3.schedule_periods to authenticated;
 grant usage, select on all sequences in schema v3 to anon, authenticated;
