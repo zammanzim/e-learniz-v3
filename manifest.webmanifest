@@ -5,13 +5,14 @@
   "description": "Portal belajar kelas interaktif: jadwal harian, daftar tugas, materi pelajaran, piket, dan pengumuman kelas.",
   "lang": "id",
   "dir": "ltr",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "theme_color": "#2563eb",
   "background_color": "#f3f7ff",
   "categories": ["education", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -36,12 +37,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -49,21 +44,21 @@
       "name": "Beranda & Jadwal",
       "short_name": "Beranda",
       "description": "Lihat jadwal harian, piket, dan pengumuman kelas",
-      "url": "./index.html#/",
+      "url": "./#/",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Daftar Tugas",
       "short_name": "Tugas",
       "description": "Cek daftar tugas dan progres penyelesaian",
-      "url": "./index.html#/tugas",
+      "url": "./#/tugas",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Mata Pelajaran",
       "short_name": "Mapel",
       "description": "Jelajahi katalog mata pelajaran dan materi",
-      "url": "./index.html#/mapel",
+      "url": "./#/mapel",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

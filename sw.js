@@ -7,7 +7,7 @@
    - Supabase Auth & Presign Worker: Network-Only (aman, tidak pernah di-cache)
    ========================================================================== */
 
-const CACHE_VERSION = 'v3.1.0';
+const CACHE_VERSION = 'v3.1.1';
 const SHELL_CACHE = `elearniz-shell-${CACHE_VERSION}`;
 const CDN_CACHE = `elearniz-cdn-${CACHE_VERSION}`;
 const DATA_CACHE = `elearniz-data-${CACHE_VERSION}`;
@@ -17,11 +17,7 @@ const ACTIVE_CACHES = [SHELL_CACHE, CDN_CACHE, DATA_CACHE, MEDIA_CACHE];
 
 const APP_SHELL_FILES = [
   './',
-  './index.html',
-  './login.html',
-  './subject.html',
-  './subjects.html',
-  './tugas.html',
+  './manifest.json',
   './manifest.webmanifest',
   './css/style.css',
   './js/skeleton.js',
@@ -39,19 +35,32 @@ const APP_SHELL_FILES = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/icon.svg'
+  './icons/apple-touch-icon.png'
 ];
+
+// Bersihkan flag redirected pada Response agar Chrome WebAPK tidak gagal validasi navigasi
+async function cleanRedirectedResponse(res) {
+  if (!res || !res.redirected) return res;
+  const body = await res.blob();
+  return new Response(body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: res.headers
+  });
+}
 
 // Install: Pre-cache seluruh App Shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then(async (cache) => {
-      // Cache satu per satu agar jika 1 gagal tidak menggagalkan seluruh instalasi SW
       await Promise.allSettled(
-        APP_SHELL_FILES.map((url) =>
-          cache.add(new Request(url, { cache: 'reload' }))
-        )
+        APP_SHELL_FILES.map(async (url) => {
+          const res = await fetch(new Request(url, { cache: 'reload' }));
+          if (res && res.status === 200) {
+            const clean = await cleanRedirectedResponse(res);
+            await cache.put(url, clean);
+          }
+        })
       );
     }).then(() => self.skipWaiting())
   );
@@ -176,18 +185,19 @@ self.addEventListener('fetch', (event) => {
   if (url.origin === self.location.origin) {
     event.respondWith(
       fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
+        .then(async (res) => {
+          const clean = await cleanRedirectedResponse(res);
+          if (clean && clean.status === 200) {
+            const copy = clean.clone();
             caches.open(SHELL_CACHE).then((cache) => cache.put(req, copy));
           }
-          return res;
+          return clean;
         })
         .catch(async () => {
           const cached = await caches.match(req, { ignoreSearch: true });
           if (cached) return cached;
           if (req.mode === 'navigate') {
-            return caches.match('./index.html');
+            return (await caches.match('./')) || (await caches.match('./index.html'));
           }
           throw new Error('Offline resource unavailable');
         })
