@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230ea5e9'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Portal belajar kelas interaktif: jadwal harian, daftar tugas, materi pelajaran, piket, dan pengumuman kelas." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="E-Learniz" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
   <title>Masuk Kelas — E-Learniz v3</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,6 +23,8 @@
     (function () {
       const saved = localStorage.getItem('elearniz_theme') || 'light';
       document.documentElement.setAttribute('data-theme', saved);
+      const tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', saved === 'dark' ? '#121826' : '#ffffff');
       // Perangkat low-end / hemat data: skeleton memakai denyut ringan, bukan sweep.
       try {
         const c = navigator.connection || {};
@@ -80,6 +91,9 @@
         <div class="staff-login-link-wrap">
           <button type="button" class="btn-staff-link" id="btnGoStaff">
             <i class="fa-solid fa-user-shield"></i> Khusus Staf / Pengajar
+          </button>
+          <button type="button" class="btn-staff-link" id="loginInstallBtn" style="display:none; margin-left:0.5rem;">
+            <i class="fa-solid fa-download"></i> Install Aplikasi
           </button>
         </div>
       </div>
@@ -168,6 +182,7 @@
   <script src="js/db.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/pwa.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       // 0. AUTO REDIRECT jika sesi yang tersimpan masih valid.
