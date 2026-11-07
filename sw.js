@@ -1,208 +1,177 @@
-/* ==========================================================================
-   sw.js — E-Learniz v3 Service Worker (PWA)
-   - App Shell: Network-First + Cache Fallback (selalu segar saat online, jalan saat offline)
-   - CDN (Fonts, FontAwesome, Supabase SDK): Stale-While-Revalidate (cepat & siap offline)
-   - Supabase REST GET (/rest/v1/): Network-First + Offline Cache Fallback
-   - Media R2: Cache-First (hemat kuota & instan)
-   - Supabase Auth & Presign Worker: Network-Only (aman, tidak pernah di-cache)
-   ========================================================================== */
+// =========================================================================
+// SW — E-Learniz v3 (PWA)
+// Pola identik OSIS TARPAN ONE: App shell precache + runtime cache.
+// Aman untuk Supabase & Presign Worker (API tidak di-cache).
+// =========================================================================
 
-const CACHE_VERSION = 'v3.2.1';
-const SHELL_CACHE = `elearniz-shell-${CACHE_VERSION}`;
-const CDN_CACHE = `elearniz-cdn-${CACHE_VERSION}`;
-const DATA_CACHE = `elearniz-data-${CACHE_VERSION}`;
-const MEDIA_CACHE = `elearniz-media-${CACHE_VERSION}`;
+const VERSI = "elearniz-v1";
+const STATIS = VERSI + "-statis";
+const RUNTIME = VERSI + "-runtime";
 
-const ACTIVE_CACHES = [SHELL_CACHE, CDN_CACHE, DATA_CACHE, MEDIA_CACHE];
-
-const APP_SHELL_FILES = [
-  '/',
-  '/manifest.json',
-  '/manifest.webmanifest',
-  '/css/style.css',
-  '/js/skeleton.js',
-  '/js/config.js',
-  '/js/time.js',
-  '/js/db.js',
-  '/js/auth.js',
-  '/js/ui.js',
-  '/js/sidebar.js',
-  '/js/visitor.js',
-  '/js/cards.js',
-  '/js/app.js',
-  '/js/pwa.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
-  '/icons/apple-touch-icon.png'
+// App shell — SEMUA halaman + script lokal di-precache biar offline-ready
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./login.html",
+  "./subject.html",
+  "./subjects.html",
+  "./tugas.html",
+  "./offline.html",
+  "./manifest.webmanifest",
+  "./manifest.json",
+  "./css/style.css",
+  "./js/skeleton.js",
+  "./js/config.js",
+  "./js/time.js",
+  "./js/db.js",
+  "./js/auth.js",
+  "./js/ui.js",
+  "./js/sidebar.js",
+  "./js/visitor.js",
+  "./js/cards.js",
+  "./js/app.js",
+  "./js/pwa.js",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-512-maskable.png",
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-32.png",
 ];
 
-// Bersihkan flag redirected pada Response agar Chrome WebAPK tidak gagal validasi navigasi
-async function cleanRedirectedResponse(res) {
-  if (!res || !res.redirected) return res;
-  const body = await res.blob();
-  return new Response(body, {
-    status: res.status,
-    statusText: res.statusText,
-    headers: res.headers
-  });
-}
-
-// Install: Pre-cache seluruh App Shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(SHELL_CACHE).then(async (cache) => {
-      await Promise.allSettled(
-        APP_SHELL_FILES.map(async (url) => {
-          const res = await fetch(new Request(url, { cache: 'reload' }));
-          if (res && res.status === 200) {
-            const clean = await cleanRedirectedResponse(res);
-            await cache.put(url, clean);
-          }
-        })
-      );
-    }).then(() => self.skipWaiting())
-  );
+self.addEventListener("install", (e) => {
+  // Catatan: JANGAN skipWaiting() di sini. SW baru wajib menunggu sampai
+  // halaman memintanya via pesan SKIP_WAITING (js/pwa.js). skipWaiting
+  // otomatis = take-over tiba-tiba + controllerchange + WebAPK install crash.
+  e.waitUntil(caches.open(STATIS).then((c) => c.addAll(APP_SHELL)));
 });
 
-// Activate: Bersihkan cache versi lama & klaim semua tab aktif
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith('elearniz-') && !ACTIVE_CACHES.includes(key))
-          .map((key) => caches.delete(key))
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (k) => k.startsWith("elearniz-") && k !== STATIS && k !== RUNTIME,
+            )
+            .map((k) => caches.delete(k)),
+        ),
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
-// Pesan dari halaman (mis. paksa update SW)
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+// Update instan saat ada deploy baru (dipanggil dari js/pwa.js)
+self.addEventListener("message", (e) => {
+  if (e.data === "SKIP_WAITING" || (e.data && e.data.type === "SKIP_WAITING")) {
     self.skipWaiting();
   }
 });
 
-// Helper: batasi jumlah item di dalam cache
-async function trimCache(cacheName, maxItems) {
-  try {
-    const cache = await caches.open(cacheName);
-    const keys = await cache.keys();
-    if (keys.length > maxItems) {
-      await Promise.all(
-        keys.slice(0, keys.length - maxItems).map((req) => cache.delete(req))
-      );
-    }
-  } catch (_) {}
+// Jangan cache API/auth Supabase & Presign Worker — selalu network
+function apiJanganCache(url) {
+  return (
+    url.pathname.includes("/rest/v1/") ||
+    url.pathname.includes("/auth/v1/") ||
+    url.pathname.includes("/realtime/v1/") ||
+    url.pathname.includes("/presign")
+  );
 }
 
-// Fetch: Strategi hibrida sesuai tipe request
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-
-  // Hanya tangani GET dan protokol http/https
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
-
-  // 1. JANGAN PERNAH cache endpoint autentikasi Supabase atau Worker presign R2
-  //    (Catatan: jangan blokir *.workers.dev secara umum karena frontend sendiri jalan di e-learniz-v3.nizzcuy.workers.dev)
-  if (
-    url.pathname.includes('/auth/v1/') ||
-    url.hostname.startsWith('elearniz-media-presign.') ||
-    url.pathname.endsWith('/presign')
-  ) {
-    return;
+// Stale-while-revalidate: sajikan cache dulu, update di background.
+// Saat fetch gagal (offline): fallback cache persis, lalu cache tanpa
+// query (?v=7) biar URL berversion tetap ketemu precache.
+async function basiDulu(request, namaCache) {
+  const daftarCache = namaCache === STATIS ? [STATIS] : [namaCache, STATIS];
+  const cacheUtama = await caches.open(namaCache);
+  let cached = null;
+  for (const nama of daftarCache) {
+    const c = await caches.open(nama);
+    const m = await c.match(request, { ignoreSearch: false });
+    if (m) { cached = m; break; }
   }
+  const ambil = fetch(request)
+    .then((res) => {
+      if (res && (res.ok || res.type === "opaque"))
+        cacheUtama.put(request, res.clone());
+      return res;
+    })
+    .catch(async () => {
+      if (cached) return cached;
+      if (new URL(request.url).origin === self.location.origin) {
+        for (const nama of daftarCache) {
+          const c = await caches.open(nama);
+          const tanpaQuery = await c.match(request, { ignoreSearch: true });
+          if (tanpaQuery) return tanpaQuery;
+        }
+      }
+      throw new Error("offline");
+    });
+  return cached || ambil;
+}
 
-  // 2. Supabase REST API GET (/rest/v1/): Network-First dengan fallback cache saat offline
-  if (url.hostname.endsWith('.supabase.co') && url.pathname.includes('/rest/v1/')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(DATA_CACHE).then((cache) => {
-              cache.put(req, copy);
-              trimCache(DATA_CACHE, 80);
-            });
-          }
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+
+  // 1) Navigasi halaman (termasuk hash-route SPA) — network dulu, fallback cache/offline
+  if (req.mode === "navigate") {
+    e.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(req);
+          const cache = await caches.open(RUNTIME);
+          cache.put(req, res.clone());
           return res;
-        })
-        .catch(async () => {
+        } catch {
           const cached = await caches.match(req);
           if (cached) return cached;
-          throw new Error('Offline and no cached data available');
-        })
-    );
-    return;
-  }
-
-  // 3. Media Gambar R2: Cache-First (hemat kuota bandwidth & tampil instan)
-  if (url.hostname.includes('media-v3.e-learniz.my.id')) {
-    event.respondWith(
-      caches.open(MEDIA_CACHE).then(async (cache) => {
-        const cached = await cache.match(req);
-        if (cached) return cached;
-        const res = await fetch(req);
-        if (res && (res.status === 200 || res.type === 'opaque')) {
-          cache.put(req, res.clone());
-          trimCache(MEDIA_CACHE, 60);
+          if (url.origin === self.location.origin) {
+            const shell =
+              (await caches.match("./index.html")) ||
+              (await caches.match("./"));
+            if (shell) return shell;
+          }
+          return caches.match("./offline.html");
         }
-        return res;
-      })
+      })(),
     );
     return;
   }
 
-  // 4. Library CDN (Google Fonts, FontAwesome, Supabase JS SDK): Stale-While-Revalidate
-  const isCDN =
-    url.hostname.includes('fonts.googleapis.com') ||
-    url.hostname.includes('fonts.gstatic.com') ||
-    url.hostname.includes('cdnjs.cloudflare.com') ||
-    url.hostname.includes('cdn.jsdelivr.net');
-
-  if (isCDN) {
-    event.respondWith(
-      caches.open(CDN_CACHE).then(async (cache) => {
-        const cached = await cache.match(req);
-        const networkPromise = fetch(req)
-          .then((res) => {
-            if (res && (res.status === 200 || res.type === 'opaque')) {
-              cache.put(req, res.clone());
-            }
-            return res;
-          })
-          .catch(() => cached);
-        return cached || networkPromise;
-      })
-    );
+  // 2) API Supabase & Worker Presign — network only (jangan sajikan basi)
+  if ((url.hostname.endsWith("supabase.co") || url.pathname.includes("/presign")) && apiJanganCache(url)) {
     return;
   }
 
-  // 5. File App Shell Lokal (Same-Origin HTML, CSS, JS, Icons): Network-First + Cache Fallback
+  // 3) Aset lokal (css/js/gambar/manifest/icons) — stale-while-revalidate
   if (url.origin === self.location.origin) {
-    event.respondWith(
-      fetch(req)
-        .then(async (res) => {
-          const clean = await cleanRedirectedResponse(res);
-          if (clean && clean.status === 200) {
-            const copy = clean.clone();
-            caches.open(SHELL_CACHE).then((cache) => cache.put(req, copy));
-          }
-          return clean;
-        })
-        .catch(async () => {
-          const cached = await caches.match(req, { ignoreSearch: true });
-          if (cached) return cached;
-          if (req.mode === 'navigate') {
-            return (await caches.match('/')) || (await caches.match('/index.html'));
-          }
-          throw new Error('Offline resource unavailable');
-        })
-    );
+    e.respondWith(basiDulu(req, RUNTIME));
+    return;
   }
+
+  // 4) Lintas origin: CDN (Google Fonts, FontAwesome, Supabase SDK) + media R2
+  e.respondWith(
+    (async () => {
+      const cache = await caches.open(RUNTIME);
+      const cached = await cache.match(req);
+      try {
+        const res = await fetch(req);
+        if (res && (res.ok || res.type === "opaque"))
+          cache.put(req, res.clone());
+        return res;
+      } catch {
+        if (cached) return cached;
+        if (req.destination === "image") {
+          return new Response(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="100%" height="100%" fill="#f3f7ff"/><text x="50%" y="50%" font-family="sans-serif" font-size="28" fill="#64748b" text-anchor="middle">Offline</text></svg>',
+            { headers: { "Content-Type": "image/svg+xml" } },
+          );
+        }
+        throw new Error("offline");
+      }
+    })(),
+  );
 });

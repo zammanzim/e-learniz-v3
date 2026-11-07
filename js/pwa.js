@@ -1,199 +1,172 @@
-/* ==========================================================================
-   js/pwa.js — E-Learniz v3 PWA Controller
-   - Registrasi Service Worker (sw.js)
-   - Sinkronisasi warna status bar (<meta name="theme-color">) dengan tema Light/Dark
-   - Tombol Install Aplikasi (beforeinstallprompt + panduan iOS Safari)
-   - Deteksi status koneksi Offline / Online
-   ========================================================================== */
+// =========================================================================
+// PWA — registrasi Service Worker + tombol Install App (E-Learniz v3)
+// Pola identik OSIS TARPAN ONE: Aman di file:// & HTTP/HTTPS, auto-update rapi.
+// =========================================================================
 (function () {
-  'use strict';
+  "use strict";
 
-  let deferredPrompt = null;
+  var reloadSiap = false;
 
-  function isStandalone() {
+  function toast(msg, tipe) {
+    if (window.ELearnizUI && typeof window.ELearnizUI.toast === "function") {
+      window.ELearnizUI.toast(msg, tipe || "info");
+    }
+  }
+
+  // ---- 1) Registrasi Service Worker ----
+  function daftarSW() {
+    if (!("serviceWorker" in navigator)) return;
+    if (!/^https?:$/.test(location.protocol)) return; // file:// tidak dukung SW
+    var swUrl = "sw.js";
+    var punyaControllerAwal = !!navigator.serviceWorker.controller;
+
+    // Rem: reload otomatis maksimal 1x per 60 detik per tab
+    function bolehMuatUlang() {
+      try {
+        var kunci = "pwa_last_reload";
+        var terakhir = parseInt(sessionStorage.getItem(kunci) || "0", 10);
+        if (Date.now() - terakhir < 60000) return false;
+        sessionStorage.setItem(kunci, String(Date.now()));
+        return true;
+      } catch (e) {
+        if (reloadSiap) return false;
+        reloadSiap = true;
+        return true;
+      }
+    }
+
+    function mintaAktif(reg) {
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        toast("Versi baru siap — memuat ulang…", "info");
+        reg.waiting.postMessage("SKIP_WAITING");
+      }
+    }
+
+    navigator.serviceWorker
+      .register(swUrl)
+      .then(function (reg) {
+        mintaAktif(reg);
+        reg.addEventListener("updatefound", function () {
+          var baru = reg.installing;
+          if (!baru) return;
+          baru.addEventListener("statechange", function () {
+            if (baru.state === "installed") mintaAktif(reg);
+          });
+        });
+      })
+      .catch(function () {});
+
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!punyaControllerAwal) {
+        punyaControllerAwal = true;
+        return;
+      }
+      if (!bolehMuatUlang()) return;
+      location.reload();
+    });
+  }
+
+  // ---- 2) Tombol Install App ----
+  var promptTunda = null;
+
+  function sudahStandalone() {
     return (
-      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true
     );
   }
 
-  function isIOS() {
-    const ua = window.navigator.userAgent || '';
-    const iOSDevice = /iPad|iPhone|iPod/.test(ua);
-    const iPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-    return (iOSDevice || iPadOS) && !window.MSStream;
-  }
-
-  function notify(msg, type = 'info') {
-    if (window.ELearnizUI && typeof window.ELearnizUI.toast === 'function') {
-      window.ELearnizUI.toast(msg, type);
-    }
-  }
-
-  /* ------------------------------------------------------------------------
-     1. SINKRONISASI META THEME-COLOR (Light: #ffffff, Dark: #121826)
-     ------------------------------------------------------------------------ */
-  function syncThemeColor() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const color = isDark ? '#121826' : '#ffffff';
-    let meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'theme-color';
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', color);
-  }
-
-  function observeThemeChanges() {
-    syncThemeColor();
-    const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === 'attributes' && m.attributeName === 'data-theme') {
-          syncThemeColor();
-        }
-      }
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-  }
-
-  /* ------------------------------------------------------------------------
-     2. TOMBOL INSTALL APLIKASI (Dropdown Profil & Halaman Login)
-     ------------------------------------------------------------------------ */
-  function updateInstallButtonsVisibility() {
-    const canInstall = !isStandalone() && (Boolean(deferredPrompt) || isIOS());
-    const dropdownBtn = document.getElementById('dropdownInstallBtn');
-    const loginBtn = document.getElementById('loginInstallBtn');
-
-    if (dropdownBtn) {
-      dropdownBtn.style.display = canInstall ? 'flex' : 'none';
-    }
-    if (loginBtn) {
-      loginBtn.style.display = canInstall ? 'inline-flex' : 'none';
-    }
-  }
-
-  async function triggerInstallPrompt(e) {
-    if (e) e.preventDefault();
-
-    if (typeof window.toggleProfileDropdown === 'function') {
+  async function pasang() {
+    if (typeof window.toggleProfileDropdown === "function") {
       window.toggleProfileDropdown(false);
     }
+    if (!promptTunda) return false;
+    try {
+      promptTunda.prompt();
+      await promptTunda.userChoice.catch(function () {});
+    } catch (e) {}
+    promptTunda = null;
+    sembunyiTombol();
+    return true;
+  }
 
-    if (deferredPrompt) {
-      try {
-        deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
-        if (choice && choice.outcome === 'accepted') {
-          notify('E-Learniz sedang ditambahkan ke perangkat kamu! 🎉', 'success');
-          deferredPrompt = null;
+  function tampilTombol() {
+    if (sudahStandalone()) return;
+    var dropdownBtn = document.getElementById("dropdownInstallBtn");
+    var loginBtn = document.getElementById("loginInstallBtn");
+    if (dropdownBtn) dropdownBtn.style.display = "flex";
+    if (loginBtn) loginBtn.style.display = "inline-flex";
+  }
+
+  function sembunyiTombol() {
+    var dropdownBtn = document.getElementById("dropdownInstallBtn");
+    var loginBtn = document.getElementById("loginInstallBtn");
+    if (dropdownBtn) dropdownBtn.style.display = "none";
+    if (loginBtn) loginBtn.style.display = "none";
+  }
+
+  function pasangListenerTombol() {
+    var dropdownBtn = document.getElementById("dropdownInstallBtn");
+    if (dropdownBtn && !dropdownBtn._boundPwa) {
+      dropdownBtn._boundPwa = true;
+      dropdownBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var ios = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+        if (ios && !promptTunda) {
+          toast("iPhone: ketuk Bagikan → Tambah ke Layar Utama", "info");
+          return;
         }
-      } catch (_) {}
-      updateInstallButtonsVisibility();
-      return;
+        pasang();
+      });
     }
 
-    if (isIOS() && !isStandalone()) {
-      if (window.ELearnizUI && window.ELearnizUI.popup && typeof window.ELearnizUI.popup.alert === 'function') {
-        window.ELearnizUI.popup.alert({
-          title: 'Install E-Learniz di iOS',
-          message: 'Ketuk ikon Share (Bagikan) di bilah bawah Safari, lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).',
-          type: 'info',
-          okText: 'Mengerti'
-        });
-      } else {
-        alert('Untuk menginstal di iPhone/iPad:\nKetuk ikon Share (Bagikan) di browser lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).');
-      }
+    var loginBtn = document.getElementById("loginInstallBtn");
+    if (loginBtn && !loginBtn._boundPwa) {
+      loginBtn._boundPwa = true;
+      loginBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var ios = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+        if (ios && !promptTunda) {
+          toast("iPhone: ketuk Bagikan → Tambah ke Layar Utama", "info");
+          return;
+        }
+        pasang();
+      });
     }
   }
 
-  function bindInstallEvents() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      updateInstallButtonsVisibility();
-    });
+  function onReady(fn) {
+    if (document.readyState === "complete" || document.readyState === "interactive") fn();
+    else document.addEventListener("DOMContentLoaded", fn);
+  }
 
-    window.addEventListener('appinstalled', () => {
-      deferredPrompt = null;
-      updateInstallButtonsVisibility();
-      notify('Aplikasi E-Learniz berhasil terpasang! 🚀', 'success');
-    });
-
-    const dropdownBtn = document.getElementById('dropdownInstallBtn');
-    if (dropdownBtn && !dropdownBtn._pwaBound) {
-      dropdownBtn._pwaBound = true;
-      dropdownBtn.addEventListener('click', triggerInstallPrompt);
+  onReady(function () {
+    daftarSW();
+    pasangListenerTombol();
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+    if (ios && !sudahStandalone()) {
+      tampilTombol();
     }
+  });
 
-    const loginBtn = document.getElementById('loginInstallBtn');
-    if (loginBtn && !loginBtn._pwaBound) {
-      loginBtn._pwaBound = true;
-      loginBtn.addEventListener('click', triggerInstallPrompt);
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    promptTunda = e;
+    pasangListenerTombol();
+    tampilTombol();
+  });
+
+  window.addEventListener("appinstalled", function () {
+    promptTunda = null;
+    sembunyiTombol();
+    toast("Aplikasi berhasil terpasang! 🎉", "success");
+  });
+
+  window.PwaInstall = {
+    pasang: pasang,
+    tersedia: function () {
+      if (sudahStandalone()) return false;
+      return !!promptTunda || /iphone|ipad|ipod/i.test(navigator.userAgent || "");
     }
-
-    updateInstallButtonsVisibility();
-  }
-
-  /* ------------------------------------------------------------------------
-     3. DETEKSI KONEKSI OFFLINE / ONLINE
-     ------------------------------------------------------------------------ */
-  function bindConnectivityEvents() {
-    window.addEventListener('offline', () => {
-      notify('Kamu sedang offline — menampilkan data terakhir yang tersimpan 📡', 'warning');
-    });
-
-    window.addEventListener('online', () => {
-      notify('Koneksi kembali terhubung 🌐', 'success');
-    });
-  }
-
-  /* ------------------------------------------------------------------------
-     4. REGISTRASI SERVICE WORKER
-     ------------------------------------------------------------------------ */
-  function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) return;
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return;
-    }
-
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then((reg) => {
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-              }
-            });
-          });
-        })
-        .catch((err) => {
-          console.warn('Registrasi Service Worker gagal:', err);
-        });
-    });
-  }
-
-  // Inisialisasi
-  observeThemeChanges();
-  bindConnectivityEvents();
-  registerServiceWorker();
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindInstallEvents);
-  } else {
-    bindInstallEvents();
-  }
-
-  window.ELearnizPWA = {
-    isStandalone,
-    triggerInstallPrompt,
-    syncThemeColor
   };
 })();
