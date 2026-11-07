@@ -1,10 +1,18 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Offline — E-Learniz v3</title>
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#121826" />
+    <script>
+      (function () {
+        const saved = localStorage.getItem('elearniz_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        const tc = document.querySelector('meta[name="theme-color"]');
+        if (tc) tc.setAttribute('content', saved === 'dark' ? '#121826' : '#ffffff');
+      })();
+    </script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
@@ -28,6 +36,15 @@
         transition: transform 0.1s ease;
       }
       .btn:active { transform: scale(0.98); }
+
+      [data-theme="dark"] body {
+        background: #0a0e17; color: #f8fafc;
+      }
+      [data-theme="dark"] .off-card {
+        background: #121826; border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      [data-theme="dark"] .off-card h1 { color: #f8fafc; }
+      [data-theme="dark"] .off-card p { color: #94a3b8; }
     </style>
   </head>
   <body>

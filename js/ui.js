@@ -113,13 +113,355 @@
   }
 
   /* ==========================================================================
+     2.5 UNIVERSAL TOP-RIGHT NOTIFICATION SYSTEM (Toast-like + Confirm Actions)
+     ========================================================================== */
+  let notifContainer = null;
+
+  function ensureNotifContainer() {
+    if (!notifContainer || !document.body.contains(notifContainer)) {
+      let existing = document.getElementById('universalNotifContainer');
+      if (!existing) {
+        existing = document.createElement('div');
+        existing.id = 'universalNotifContainer';
+        existing.className = 'universal-notif-container';
+        existing.setAttribute('aria-live', 'polite');
+        existing.setAttribute('aria-atomic', 'true');
+        document.body.appendChild(existing);
+      }
+      notifContainer = existing;
+    }
+    return notifContainer;
+  }
+
+  const NOTIF_ICONS = {
+    info: 'fa-solid fa-bell',
+    success: 'fa-solid fa-circle-check',
+    warning: 'fa-solid fa-triangle-exclamation',
+    error: 'fa-solid fa-circle-xmark',
+    danger: 'fa-solid fa-triangle-exclamation'
+  };
+
+  const NOTIF_TITLES = {
+    info: 'Pemberitahuan',
+    success: 'Berhasil',
+    warning: 'Peringatan',
+    error: 'Terjadi Kesalahan',
+    danger: 'Konfirmasi Tindakan'
+  };
+
+  /**
+   * Show a notification in the top-right corner.
+   * Supports auto-dismiss (like toast) or interactive actions/confirm (like popup confirm).
+   */
+  function showNotif(messageOrOptions, maybeOptions = {}) {
+    const opts = typeof messageOrOptions === 'string'
+      ? { message: messageOrOptions, ...maybeOptions }
+      : { ...messageOrOptions };
+
+    const type = ['success', 'warning', 'error', 'danger', 'info'].includes(opts.type)
+      ? opts.type
+      : 'info';
+
+    const title = opts.title || NOTIF_TITLES[type] || 'Pemberitahuan';
+    const message = opts.message || '';
+    const iconClass = opts.icon || NOTIF_ICONS[type] || NOTIF_ICONS.info;
+    const duration = opts.duration !== undefined ? Number(opts.duration) : 4500;
+    const actions = Array.isArray(opts.actions) ? opts.actions : [];
+    const timeText = opts.time || '';
+
+    const container = ensureNotifContainer();
+
+    const notif = document.createElement('div');
+    const notifId = `uNotif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    notif.id = notifId;
+    notif.className = `u-notif u-notif-${type}${actions.length > 0 ? ' has-actions' : ''}`;
+    notif.setAttribute('role', 'alert');
+
+    // Build actions HTML
+    let actionsHtml = '';
+    if (actions.length > 0) {
+      actionsHtml = `
+        <div class="u-notif-actions">
+          ${actions.map((act, idx) => `
+            <button type="button" class="u-notif-btn ${act.class || (act.primary ? 'btn-primary' : 'btn-secondary')}" data-action-idx="${idx}">
+              ${act.icon ? act.icon : ''}
+              <span>${escapeHtml(act.text || 'Aksi')}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    const hasProgressBar = duration > 0;
+
+    notif.innerHTML = `
+      <div class="u-notif-glow"></div>
+      <div class="u-notif-main">
+        <div class="u-notif-badge ${type}">
+          <i class="${iconClass}"></i>
+        </div>
+        <div class="u-notif-content">
+          <div class="u-notif-header">
+            <div class="u-notif-title">${escapeHtml(title)}</div>
+            ${timeText ? `<span class="u-notif-time">${escapeHtml(timeText)}</span>` : ''}
+          </div>
+          <div class="u-notif-msg">${escapeHtml(message)}</div>
+        </div>
+        <button type="button" class="u-notif-close-btn" aria-label="Tutup notifikasi">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      ${actionsHtml}
+      ${hasProgressBar ? `<div class="u-notif-progress"><div class="u-notif-progress-bar" style="animation-duration: ${duration}ms"></div></div>` : ''}
+    `;
+
+    let timerId = null;
+    let remainingTime = duration;
+    let timerStartTime = Date.now();
+    let isClosed = false;
+
+    const dismiss = () => {
+      if (isClosed) return;
+      isClosed = true;
+      if (timerId) clearTimeout(timerId);
+
+      notif.classList.add('is-closing');
+      notif.addEventListener('animationend', () => {
+        notif.remove();
+      }, { once: true });
+      setTimeout(() => notif.remove(), 350);
+
+      if (typeof opts.onClose === 'function') {
+        opts.onClose();
+      }
+    };
+
+    // Close button click
+    const closeBtn = notif.querySelector('.u-notif-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismiss();
+      });
+    }
+
+    // Action button listeners
+    if (actions.length > 0) {
+      const btnEls = notif.querySelectorAll('.u-notif-btn');
+      btnEls.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.actionIdx);
+          const act = actions[idx];
+          let keepOpen = false;
+          if (act && typeof act.onClick === 'function') {
+            const res = act.onClick({ dismiss, notif, event: e });
+            if (res === true) keepOpen = true;
+          }
+          if (!keepOpen) {
+            dismiss();
+          }
+        });
+      });
+    }
+
+    // Timer handling with Pause & Resume on hover
+    const startTimer = (ms) => {
+      if (ms <= 0) return;
+      timerStartTime = Date.now();
+      timerId = setTimeout(dismiss, ms);
+    };
+
+    if (hasProgressBar) {
+      startTimer(duration);
+
+      const progressBar = notif.querySelector('.u-notif-progress-bar');
+
+      notif.addEventListener('mouseenter', () => {
+        if (isClosed) return;
+        if (timerId) clearTimeout(timerId);
+        remainingTime -= (Date.now() - timerStartTime);
+        if (remainingTime < 500) remainingTime = 500;
+        if (progressBar) progressBar.style.animationPlayState = 'paused';
+      });
+
+      notif.addEventListener('mouseleave', () => {
+        if (isClosed) return;
+        if (progressBar) progressBar.style.animationPlayState = 'running';
+        startTimer(remainingTime);
+      });
+    }
+
+    container.appendChild(notif);
+
+    return {
+      id: notifId,
+      dismiss,
+      element: notif
+    };
+  }
+
+  /**
+   * Top-Right Notification with Confirm / Cancel buttons (Popup Confirm equivalent in notif format)
+   * Returns a Promise resolving to true (confirmed) or false (cancelled / dismissed).
+   */
+  function confirmNotif(options = {}) {
+    const {
+      title = 'Konfirmasi Tindakan',
+      message = 'Apakah kamu yakin ingin melanjutkan?',
+      confirmText = 'Ya, Lanjutkan',
+      cancelText = 'Batal',
+      isDanger = false,
+      type,
+      duration = 0,
+      onConfirm,
+      onCancel
+    } = typeof options === 'string' ? { message: options } : options;
+
+    return new Promise((resolve) => {
+      let resolved = false;
+
+      const finish = (result) => {
+        if (resolved) return;
+        resolved = true;
+        if (result && typeof onConfirm === 'function') onConfirm();
+        if (!result && typeof onCancel === 'function') onCancel();
+        resolve(result);
+      };
+
+      const finalType = type || (isDanger ? 'danger' : 'info');
+
+      showNotif({
+        title,
+        message,
+        type: finalType,
+        duration,
+        actions: [
+          {
+            text: cancelText,
+            class: 'btn-secondary',
+            onClick: () => {
+              finish(false);
+            }
+          },
+          {
+            text: confirmText,
+            class: isDanger ? 'btn-danger' : 'btn-primary',
+            icon: isDanger ? '<i class="fa-solid fa-trash-can"></i> ' : '<i class="fa-solid fa-check"></i> ',
+            onClick: () => {
+              finish(true);
+            }
+          }
+        ],
+        onClose: () => {
+          finish(false);
+        }
+      });
+    });
+  }
+
+  function clearAllNotifs() {
+    if (!notifContainer) return;
+    const notifs = notifContainer.querySelectorAll('.u-notif');
+    notifs.forEach((el) => {
+      el.classList.add('is-closing');
+      setTimeout(() => el.remove(), 250);
+    });
+  }
+
+  const normalizeNotifOpts = (opts) => (typeof opts === 'string' ? { title: opts } : (opts || {}));
+
+  /* ==========================================================================
      3. UNIVERSAL POPUP SYSTEM (Alert, Confirm, Modals, Esc, Enter, Back)
      ========================================================================== */
+  // Pointer / Touch drag-to-dismiss gesture for bottom sheet modals
+  function initBottomSheetGestures(modal) {
+    if (modal.dataset.sheetGestureBound === 'true') return;
+    const dialog = modal.querySelector('.modal-dialog');
+    const handle = modal.querySelector('.modal-sheet-handle') || modal.querySelector('.sheet-drag-handle');
+    if (!dialog || !handle) return;
+    modal.dataset.sheetGestureBound = 'true';
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let activePointerId = null;
+
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      startY = e.clientY;
+      currentY = startY;
+      isDragging = true;
+      activePointerId = e.pointerId;
+      try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+      dialog.style.transition = 'none';
+      dialog.style.animation = 'none';
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+      if (!isDragging || e.pointerId !== activePointerId) return;
+      currentY = e.clientY;
+      const deltaY = currentY - startY;
+      if (deltaY > 0) {
+        dialog.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+      } else {
+        // Rubber-band resistance when dragging upwards
+        dialog.style.transform = `translate3d(0, ${deltaY * 0.15}px, 0)`;
+      }
+    });
+
+    const endDrag = (e) => {
+      if (!isDragging || (e && e.pointerId !== activePointerId)) return;
+      isDragging = false;
+      try { if (activePointerId !== null) handle.releasePointerCapture(activePointerId); } catch (_) {}
+      activePointerId = null;
+
+      const deltaY = currentY - startY;
+      if (deltaY > 80) {
+        // Dragged down to dismiss: glide down smoothly and close without re-animation
+        dialog.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+        dialog.style.transform = 'translate3d(0, 100%, 0)';
+        modal.style.transition = 'opacity 0.22s ease';
+        modal.style.opacity = '0';
+        setTimeout(() => {
+          closeModal(modal, { immediate: true });
+        }, 220);
+      } else {
+        // Dragged up or not enough: spring back smoothly to resting position
+        dialog.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+        dialog.style.transform = 'translate3d(0, 0, 0)';
+        modal.style.transition = 'opacity 0.24s ease';
+        modal.style.opacity = '1';
+        setTimeout(() => {
+          dialog.style.transition = '';
+          modal.style.transition = '';
+          modal.style.opacity = '';
+          // Keep animation set to 'none' so CSS sheetSlideUp is NEVER restarted!
+          dialog.style.animation = 'none';
+        }, 240);
+      }
+    };
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+  }
+
   function openModal(modalOrId) {
     const modal = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
     if (!modal) return;
 
     if (modal.classList.contains('is-open')) return;
+
+    modal.style.opacity = '';
+    modal.style.transition = '';
+
+    // Reset any inline drag transforms on dialog
+    const dialog = modal.querySelector('.modal-dialog');
+    if (dialog) {
+      dialog.style.transform = '';
+      dialog.style.transition = '';
+      dialog.style.animation = '';
+    }
 
     modal.classList.remove('is-closing');
     modal.classList.add('is-open');
@@ -127,6 +469,19 @@
 
     ScrollLock.lock();
     activePopups.push(modal);
+
+    // Initialize bottom-sheet swipe gestures if applicable
+    const isBottomSheet = modal.classList.contains('modal-bottom-sheet-backdrop') || modal.id === 'cardFormModal';
+    if (isBottomSheet) {
+      initBottomSheetGestures(modal);
+      // Once the opening entrance animation finishes, lock animation to 'none'
+      // to prevent accidental re-animations during touch interactions
+      setTimeout(() => {
+        if (modal.classList.contains('is-open') && !modal.classList.contains('is-closing') && dialog) {
+          dialog.style.animation = 'none';
+        }
+      }, 350);
+    }
 
     // Push history state for mobile back button
     try {
@@ -144,14 +499,39 @@
     const modal = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
     if (!modal || !modal.classList.contains('is-open')) return;
 
-    if (modal.classList.contains('is-closing')) return;
-    modal.classList.add('is-closing');
-
     // Remove from active stack
     const idx = activePopups.indexOf(modal);
     if (idx !== -1) {
       activePopups.splice(idx, 1);
     }
+
+    // Immediate cleanup when gesture has already animated the element off-screen
+    if (options.immediate) {
+      modal.classList.remove('is-open', 'is-closing');
+      modal.setAttribute('aria-hidden', 'true');
+      ScrollLock.unlock();
+      const dialog = modal.querySelector('.modal-dialog');
+      if (dialog) {
+        dialog.style.transform = '';
+        dialog.style.transition = '';
+        dialog.style.animation = '';
+      }
+      modal.style.transition = '';
+      modal.style.opacity = '';
+      if (modal.dataset.dynamicPopup === 'true') {
+        modal.remove();
+      }
+
+      if (!options.fromPopState && history.state && history.state.elearnizModalOpen) {
+        isBackNavigating = true;
+        history.back();
+        setTimeout(() => { isBackNavigating = false; }, 100);
+      }
+      return;
+    }
+
+    if (modal.classList.contains('is-closing')) return;
+    modal.classList.add('is-closing');
 
     let hasCompleted = false;
     const onComplete = () => {
@@ -160,6 +540,14 @@
       modal.classList.remove('is-open', 'is-closing');
       modal.setAttribute('aria-hidden', 'true');
       ScrollLock.unlock();
+      const dialog = modal.querySelector('.modal-dialog');
+      if (dialog) {
+        dialog.style.transform = '';
+        dialog.style.transition = '';
+        dialog.style.animation = '';
+      }
+      modal.style.transition = '';
+      modal.style.opacity = '';
       if (modal.dataset.dynamicPopup === 'true') {
         modal.remove();
       }
@@ -243,18 +631,24 @@
       modalEl.className = 'modal-backdrop u-modal-center';
       modalEl.dataset.dynamicPopup = 'true';
       modalEl.innerHTML = `
-        <div class="modal-dialog u-dialog-sm" role="dialog" aria-modal="true">
-          <div class="modal-header">
-            <h3><i class="${iconClass}"></i> ${escapeHtml(title)}</h3>
-            <button type="button" class="modal-close-btn" data-close="true">
+        <div class="modal-dialog u-dialog-sm confirm-dialog" role="dialog" aria-modal="true">
+          <div class="modal-header confirm-header">
+            <div class="confirm-header-left">
+              <div class="confirm-badge info"><i class="${iconClass}"></i></div>
+              <h3>${escapeHtml(title)}</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-close="true" aria-label="Tutup">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-          <div class="modal-body">
-            <p style="font-size:0.92rem;line-height:1.6;color:var(--text-main);">${escapeHtml(message)}</p>
+          <div class="modal-body confirm-body">
+            <p class="confirm-message">${escapeHtml(message)}</p>
           </div>
-          <div class="modal-footer" style="justify-content:flex-end;">
-            <button type="button" class="btn-primary" data-ok="true">${escapeHtml(okText)}</button>
+          <div class="modal-footer confirm-footer">
+            <button type="button" class="btn-primary" data-ok="true">
+              <i class="fa-solid fa-check"></i>
+              <span>${escapeHtml(okText)}</span>
+            </button>
           </div>
         </div>
       `;
@@ -303,19 +697,29 @@
       modalEl.className = 'modal-backdrop u-modal-center';
       modalEl.dataset.dynamicPopup = 'true';
       modalEl.innerHTML = `
-        <div class="modal-dialog u-dialog-sm" role="dialog" aria-modal="true">
-          <div class="modal-header">
-            <h3>${isDanger ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--coral-rose);"></i> ' : ''}${escapeHtml(title)}</h3>
-            <button type="button" class="modal-close-btn" data-cancel="true">
+        <div class="modal-dialog u-dialog-sm confirm-dialog ${isDanger ? 'is-danger-dialog' : ''}" role="dialog" aria-modal="true">
+          <div class="modal-header confirm-header">
+            <div class="confirm-header-left">
+              ${isDanger
+                ? '<div class="confirm-badge danger"><i class="fa-solid fa-triangle-exclamation"></i></div>'
+                : '<div class="confirm-badge info"><i class="fa-solid fa-circle-question"></i></div>'}
+              <h3>${escapeHtml(title)}</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-cancel="true" aria-label="Tutup">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-          <div class="modal-body">
-            <p style="font-size:0.92rem;line-height:1.6;color:var(--text-main);">${escapeHtml(message)}</p>
+          <div class="modal-body confirm-body">
+            <p class="confirm-message">${escapeHtml(message)}</p>
           </div>
-          <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:0.6rem;">
-            <button type="button" class="btn-secondary" data-cancel="true">${escapeHtml(cancelText)}</button>
-            <button type="button" class="${isDanger ? 'btn-danger' : 'btn-primary'}" data-popup-confirm="true">${escapeHtml(confirmText)}</button>
+          <div class="modal-footer confirm-footer">
+            <button type="button" class="btn-secondary" data-cancel="true">
+              ${escapeHtml(cancelText)}
+            </button>
+            <button type="button" class="${isDanger ? 'btn-danger' : 'btn-primary'}" data-popup-confirm="true">
+              ${isDanger ? '<i class="fa-solid fa-trash-can"></i>' : '<i class="fa-solid fa-check"></i>'}
+              <span>${escapeHtml(confirmText)}</span>
+            </button>
           </div>
         </div>
       `;
@@ -578,6 +982,16 @@
     escapeHtml,
     safeColor,
     toast: showToast,
+    notif: {
+      show: showNotif,
+      info: (msg, opts) => showNotif(msg, { ...normalizeNotifOpts(opts), type: 'info' }),
+      success: (msg, opts) => showNotif(msg, { ...normalizeNotifOpts(opts), type: 'success' }),
+      warning: (msg, opts) => showNotif(msg, { ...normalizeNotifOpts(opts), type: 'warning' }),
+      error: (msg, opts) => showNotif(msg, { ...normalizeNotifOpts(opts), type: 'error' }),
+      danger: (msg, opts) => showNotif(msg, { ...normalizeNotifOpts(opts), type: 'danger' }),
+      confirm: confirmNotif,
+      clearAll: clearAllNotifs
+    },
     popup: {
       open: openModal,
       close: closeModal,
@@ -594,4 +1008,6 @@
   // Helper shortcuts for compatibility
   window.showToast = (msg, type = 'info', duration) => showToast(msg, type, duration);
   window.showPopup = (msg, type = 'info') => alertPopup({ message: msg, type });
+  window.showNotif = (msg, opts) => showNotif(msg, opts);
+  window.confirmNotif = (opts) => confirmNotif(opts);
 })();

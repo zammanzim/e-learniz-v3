@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#121826" />
   <meta name="description" content="Portal belajar kelas interaktif: jadwal harian, daftar tugas, materi pelajaran, piket, dan pengumuman kelas." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="css/style.css" />
   <script>
     (function () {
-      const saved = localStorage.getItem('elearniz_theme') || 'light';
+      const saved = localStorage.getItem('elearniz_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', saved);
       const tc = document.querySelector('meta[name="theme-color"]');
       if (tc) tc.setAttribute('content', saved === 'dark' ? '#121826' : '#ffffff');

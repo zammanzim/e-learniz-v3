@@ -23,6 +23,7 @@
     activeSubjectId: null,
     selectedDayOfWeek: null,
     isDailyCardEditing: false,
+    scheduleDrafts: {},
 
     // Tugas filter state
     taskTab: 'pending', // 'pending' | 'done' | 'all'
@@ -194,7 +195,7 @@
 
     // Theme Switcher Toggle inside Profile Dropdown
     function updateThemeUI() {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
       const themeIcon = document.getElementById('dropdownThemeIcon');
       const themeText = document.getElementById('dropdownThemeText');
       if (themeIcon) {
@@ -207,10 +208,12 @@
     }
 
     function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('elearniz_theme', next);
+      const tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', next === 'dark' ? '#121826' : '#ffffff');
       updateThemeUI();
       showToast(next === 'dark' ? 'Mode Gelap diaktifkan 🌙' : 'Mode Terang diaktifkan ☀️');
     }
@@ -354,6 +357,7 @@
     state.activeView = viewName;
     if (viewName !== 'home') {
       state.isDailyCardEditing = false;
+      state.scheduleDrafts = {};
     }
     if (viewName === 'subject') {
       state.activeSubjectId = subjectId || null;
@@ -495,6 +499,7 @@
     const dcContainer = document.getElementById('dailyInfoCard');
     window.ELearnizCards.renderDailyCard(dcContainer, {
       scheduleDays: state.scheduleDays,
+      scheduleDrafts: state.scheduleDrafts || {},
       selectedDayOfWeek: state.selectedDayOfWeek,
       pendingTaskCount,
       subjects: state.subjects,
@@ -504,18 +509,46 @@
       onClickSubject: (sid) => switchView('subject', sid),
       onToggleEditMode: (active) => {
         state.isDailyCardEditing = active;
+        if (!active) {
+          state.scheduleDrafts = {};
+        }
       },
-      onSelectDay: (dayNum) => {
+      onSelectDay: (dayNum, currentDraft) => {
+        if (state.isDailyCardEditing && currentDraft) {
+          if (!state.scheduleDrafts) state.scheduleDrafts = {};
+          state.scheduleDrafts[Number(currentDraft.day_of_week)] = currentDraft;
+        }
         state.selectedDayOfWeek = Number(dayNum);
         renderAllViews();
       },
-      onSaveDailyCard: async (dayNum, payload) => {
+      onSaveDailyCard: async (allDraftsOrDayNum, maybePayload) => {
         try {
-          await window.ELearnizDB.updateScheduleDay(state.activeClass.id, dayNum, payload);
+          let draftsToSave = [];
+          if (typeof allDraftsOrDayNum === 'object' && allDraftsOrDayNum !== null && !maybePayload) {
+            draftsToSave = Object.entries(allDraftsOrDayNum).map(([dayNum, payload]) => ({
+              dayNum: Number(dayNum),
+              payload
+            }));
+          } else {
+            draftsToSave = [{ dayNum: Number(allDraftsOrDayNum), payload: maybePayload }];
+          }
+
+          if (draftsToSave.length === 0) return;
+
+          for (const item of draftsToSave) {
+            await window.ELearnizDB.updateScheduleDay(state.activeClass.id, item.dayNum, item.payload);
+          }
+
           state.scheduleDays = await window.ELearnizDB.getScheduleWithPeriods(state.activeClass.id);
+          state.scheduleDrafts = {};
           state.isDailyCardEditing = false;
           renderAllViews();
-          showToast('Daily Card berhasil diperbarui!', 'success');
+
+          const count = draftsToSave.length;
+          const msg = count > 1
+            ? `Daily Card (${count} hari) berhasil diperbarui!`
+            : 'Daily Card berhasil diperbarui!';
+          showToast(msg, 'success');
         } catch (err) {
           showToast('Gagal menyimpan Daily Card: ' + (err.message || err), 'error');
           throw err;
@@ -1565,56 +1598,35 @@
         const removeBtn = e.target.closest('.btn-remove-img');
         if (!removeBtn) return;
         const idx = Number(removeBtn.dataset.removeIndex);
-        if (!isNaN(idx) && idx >= 0 && idx < cardFormImages.length) {
-          cardFormImages.splice(idx, 1);
+        if (!isNaN(idx) && idx >= 0 && idx < cardFormPhotos.length) {
+          const removed = cardFormPhotos.splice(idx, 1)[0];
+          if (removed && removed.type === 'draft' && removed.previewUrl) {
+            try { URL.revokeObjectURL(removed.previewUrl); } catch (_) {}
+          }
           renderImagePreviews();
           showToast('Foto dihapus dari daftar', 'info');
         }
       });
     }
 
-    async function handleUploadFiles(files) {
+    function handleUploadFiles(files) {
       const imageFiles = files.filter((f) => f.type && f.type.startsWith('image/'));
       if (imageFiles.length === 0) {
         showToast('Silakan pilih file gambar yang valid (JPG, PNG, WebP, GIF).', 'warning');
         return;
       }
 
-      const container = document.getElementById('cfImagePreviewList');
-
       for (const file of imageFiles) {
-        const tempId = 'upload_' + Math.random().toString(36).substring(2, 9);
-        const tempUrl = URL.createObjectURL(file);
-
-        if (container) {
-          const tempCard = document.createElement('div');
-          tempCard.className = 'preview-card';
-          tempCard.id = tempId;
-          tempCard.innerHTML = `
-            <img src="${tempUrl}" alt="${window.ELearnizCards.escapeHtml(file.name)}" />
-            <div class="preview-card-overlay">
-              <i class="fa-solid fa-spinner fa-spin"></i>
-              <span>Upload R2...</span>
-            </div>
-          `;
-          container.appendChild(tempCard);
-        }
-
-        try {
-          const pubUrl = await window.ELearnizDB.uploadMedia(file, 'cards');
-          cardFormImages.push(pubUrl);
-          const tempEl = document.getElementById(tempId);
-          if (tempEl) tempEl.remove();
-          renderImagePreviews();
-          showToast(`Berhasil upload ${file.name} ke Cloudflare R2! ☁️`, 'success');
-        } catch (err) {
-          const tempEl = document.getElementById(tempId);
-          if (tempEl) tempEl.remove();
-          showToast(`Gagal upload ${file.name}: ${err.message || 'Error'}`, 'error');
-        } finally {
-          URL.revokeObjectURL(tempUrl);
-        }
+        const previewUrl = URL.createObjectURL(file);
+        cardFormPhotos.push({
+          type: 'draft',
+          file,
+          previewUrl,
+          name: file.name
+        });
       }
+
+      renderImagePreviews();
     }
 
     const kindSelect = document.getElementById('cfKind');
@@ -1659,9 +1671,28 @@
             throw new Error('Pilih mata pelajaran untuk materi/tugas ini.');
           }
 
-          const images = cardFormImages.length > 0
-            ? [...cardFormImages]
-            : (document.getElementById('cfImages').value || '').split(',').map((s) => s.trim()).filter(Boolean);
+          // Upload foto draf ke Cloudflare R2 sebelum menyimpan card
+          const draftPhotos = cardFormPhotos.filter((p) => p.type === 'draft');
+          if (draftPhotos.length > 0) {
+            for (let i = 0; i < draftPhotos.length; i++) {
+              const draft = draftPhotos[i];
+              if (submitBtn) {
+                submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i> Upload foto (${i + 1}/${draftPhotos.length})...`;
+              }
+              const pubUrl = await window.ELearnizDB.uploadMedia(draft.file, 'cards');
+              draft.url = pubUrl;
+              draft.type = 'existing';
+              if (draft.previewUrl) {
+                try { URL.revokeObjectURL(draft.previewUrl); } catch (_) {}
+              }
+            }
+          }
+
+          if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan konten...';
+          }
+
+          const images = cardFormPhotos.map((p) => p.url).filter(Boolean);
           const has_task = document.getElementById('cfHasTask').checked;
           const pinned = document.getElementById('cfPinned').checked;
 
@@ -1680,6 +1711,8 @@
           });
 
           window.ELearnizUI.popup.close('cardFormModal');
+          clearDraftPhotoUrls();
+          cardFormPhotos = [];
           state.cards = await window.ELearnizDB.listCards(state.activeClass.id);
           renderAllViews();
           showToast(id ? 'Konten berhasil diperbarui!' : 'Konten baru berhasil ditambahkan!', 'success');
@@ -1784,12 +1817,21 @@
     return `${YYYY}-${MM}-${DD}T${HH}:${mm}`;
   }
 
-  let cardFormImages = [];
+  let cardFormPhotos = [];
+
+  function clearDraftPhotoUrls() {
+    cardFormPhotos.forEach((item) => {
+      if (item.type === 'draft' && item.previewUrl) {
+        try { URL.revokeObjectURL(item.previewUrl); } catch (_) {}
+      }
+    });
+  }
 
   function updateCardImagesHidden() {
     const cfImages = document.getElementById('cfImages');
     if (cfImages) {
-      cfImages.value = cardFormImages.join(', ');
+      const urls = cardFormPhotos.map((p) => (p.type === 'existing' ? p.url : `[Draf: ${p.name}]`));
+      cfImages.value = urls.join(', ');
     }
   }
 
@@ -1798,23 +1840,29 @@
     if (!container) return;
     updateCardImagesHidden();
 
-    if (cardFormImages.length === 0) {
+    if (cardFormPhotos.length === 0) {
       container.innerHTML = '';
       return;
     }
 
-    container.innerHTML = cardFormImages
-      .map(
-        (url, idx) => `
-      <div class="preview-card" data-index="${idx}">
-        <img src="${window.ELearnizCards.escapeHtml(url)}" alt="Foto ${idx + 1}" loading="lazy" decoding="async" />
-        <span class="preview-badge-r2"><i class="fa-solid fa-cloud"></i> R2</span>
-        <button type="button" class="btn-remove-img" data-remove-index="${idx}" title="Hapus foto ini">
-          <i class="fa-solid fa-trash-can"></i>
-        </button>
-      </div>
-    `
-      )
+    container.innerHTML = cardFormPhotos
+      .map((item, idx) => {
+        const src = item.type === 'draft' ? item.previewUrl : item.url;
+        const isDraft = item.type === 'draft';
+        const badgeHtml = isDraft
+          ? `<span class="preview-badge-draft"><i class="fa-solid fa-clock"></i> Draf</span>`
+          : `<span class="preview-badge-r2"><i class="fa-solid fa-cloud"></i> R2</span>`;
+
+        return `
+          <div class="preview-card" data-index="${idx}">
+            <img src="${src}" alt="Foto ${idx + 1}" loading="lazy" decoding="async" />
+            ${badgeHtml}
+            <button type="button" class="btn-remove-img" data-remove-index="${idx}" title="Hapus foto ini">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+      })
       .join('');
   }
 
@@ -1833,7 +1881,8 @@
     document.getElementById('cfSmall').value = '';
     document.getElementById('cfDueDate').value = '';
 
-    cardFormImages = [];
+    clearDraftPhotoUrls();
+    cardFormPhotos = [];
     renderImagePreviews();
 
     const fi = document.getElementById('cfImageFile');
@@ -1856,7 +1905,9 @@
     document.getElementById('cfSmall').value = card.small || '';
     document.getElementById('cfDueDate').value = toLocalDatetimeString(card.due_date);
 
-    cardFormImages = Array.isArray(card.images) ? [...card.images] : [];
+    clearDraftPhotoUrls();
+    const existingImgs = Array.isArray(card.images) ? card.images : [];
+    cardFormPhotos = existingImgs.map((url) => ({ type: 'existing', url }));
     renderImagePreviews();
 
     const fi = document.getElementById('cfImageFile');

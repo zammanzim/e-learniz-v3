@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#121826" />
   <meta name="description" content="Portal belajar kelas interaktif: jadwal harian, daftar tugas, materi pelajaran, piket, dan pengumuman kelas." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="css/style.css" />
   <script>
     (function () {
-      const saved = localStorage.getItem('elearniz_theme') || 'light';
+      const saved = localStorage.getItem('elearniz_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', saved);
       const tc = document.querySelector('meta[name="theme-color"]');
       if (tc) tc.setAttribute('content', saved === 'dark' ? '#121826' : '#ffffff');
@@ -83,7 +83,7 @@
             <span class="visitor-count-badge" id="visitorCount">0</span>
           </a>
           <div class="dropdown-theme-toggle" id="dropdownThemeToggle" role="button" title="Ganti Tema">
-            <span class="theme-label"><i class="fa-solid fa-moon" id="dropdownThemeIcon"></i> <span id="dropdownThemeText">Mode Gelap</span></span>
+            <span class="theme-label"><i class="fa-solid fa-sun" id="dropdownThemeIcon" style="color: #fbbf24;"></i> <span id="dropdownThemeText">Mode Terang</span></span>
             <div class="theme-toggle-switch">
               <span class="theme-toggle-knob"></span>
             </div>
@@ -422,8 +422,11 @@
   </div>
 
   <!-- ================= MODAL FORM TAMBAH / EDIT KARTU (ADMIN) ================= -->
-  <div class="modal-backdrop" id="cardFormModal" aria-hidden="true">
-    <div class="modal-dialog">
+  <div class="modal-backdrop modal-bottom-sheet-backdrop" id="cardFormModal" aria-hidden="true">
+    <div class="modal-dialog modal-bottom-sheet">
+      <div class="modal-sheet-handle" aria-hidden="true" title="Tarik ke bawah untuk menutup">
+        <span class="modal-sheet-pill"></span>
+      </div>
       <div class="modal-header">
         <h3 id="cardFormTitle">Tambah Konten Baru</h3>
         <button type="button" class="modal-close-btn" data-close-modal="cardFormModal">

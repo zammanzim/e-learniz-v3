@@ -164,6 +164,7 @@
     if (!container) return;
     const {
       scheduleDays = [],
+      scheduleDrafts = {},
       selectedDayOfWeek,
       pendingTaskCount = 0,
       subjects = [],
@@ -178,7 +179,7 @@
 
     const smart = getSmartSchoolDay();
     const activeDayNum = selectedDayOfWeek || smart.isoDay;
-    const dayObj = scheduleDays.find((d) => Number(d.day_of_week) === Number(activeDayNum)) || {
+    const baseDayObj = scheduleDays.find((d) => Number(d.day_of_week) === Number(activeDayNum)) || {
       day_of_week: activeDayNum,
       day_name: DAY_NAMES[activeDayNum] || 'Senin',
       uniform: 'Putih Abu-Abu Lengkap',
@@ -187,6 +188,8 @@
       picket_members: ['Belum diatur'],
       periods: []
     };
+    const draftForDay = scheduleDrafts && scheduleDrafts[Number(activeDayNum)];
+    const dayObj = draftForDay ? { ...baseDayObj, ...draftForDay } : baseDayObj;
 
     const todayIso = smart.todayIso;
     const isTodaySelected = Number(activeDayNum) === Number(todayIso);
@@ -247,12 +250,18 @@
 
         <!-- Tab Hari (Sen–Min) -->
         <div class="dc-day-tabs" id="dcDayTabs" role="tablist" aria-label="Pilih hari jadwal">
-          ${[1, 2, 3, 4, 5, 6, 7].map((d) => `
-            <button type="button" class="dc-day-tab ${Number(d) === Number(activeDayNum) ? 'active' : ''}"
-              data-dc-day="${d}" role="tab" aria-selected="${Number(d) === Number(activeDayNum) ? 'true' : 'false'}">
-              ${DAY_SHORT[d]}
-            </button>
-          `).join('')}
+          ${[1, 2, 3, 4, 5, 6, 7].map((d) => {
+            const hasDraft = Boolean(scheduleDrafts && scheduleDrafts[Number(d)]);
+            const isActive = Number(d) === Number(activeDayNum);
+            return `
+              <button type="button" class="dc-day-tab ${isActive ? 'active' : ''} ${hasDraft ? 'has-draft' : ''}"
+                data-dc-day="${d}" role="tab" aria-selected="${isActive ? 'true' : 'false'}"
+                title="${DAY_NAMES[d] || 'Hari'}${hasDraft ? ' (Draf belum disimpan)' : ''}">
+                ${DAY_SHORT[d]}
+                ${hasDraft ? '<span class="draft-indicator-dot"></span>' : ''}
+              </button>
+            `;
+          }).join('')}
         </div>
 
         <!-- 3 Top Info Cards: Seragam, Kegiatan, Catatan (Editable Inline) -->
@@ -295,7 +304,7 @@
               const matchedSubject = findSubject(subjects, p.subject_id, p.subject_name);
               const nowActive = isPeriodNow(timeStr, isTodaySelected);
               return `
-                <div class="tl-item-final ${nowActive ? 'is-now' : ''}">
+                <div class="tl-item-final ${nowActive ? 'is-now' : ''}" data-subject-id="${p.subject_id || (matchedSubject ? matchedSubject.id : '')}">
                   <div class="tl-time-final editable-text" data-type="time" title="Waktu (contoh: 07.00 - 08.30)">${escapeHtml(timeStr)}</div>
                   <div class="tl-marker-final"></div>
                   <div class="tl-subject-final editable-text ${matchedSubject ? 'clickable' : ''}" data-type="subject" ${matchedSubject ? `data-goto-subject="${matchedSubject.id}"` : ''} title="Nama Mapel">
@@ -393,12 +402,59 @@
       setInlineEditMode(true);
     }
 
+    const extractCurrentDayPayload = () => {
+      const uniformEl = container.querySelector('[data-type="uniform"]');
+      const activityEl = container.querySelector('[data-type="activity"]');
+      const notesEl = container.querySelector('[data-type="notes"]');
+      const clean = (el) => (el ? el.innerText.trim() : '');
+
+      const periodRows = [];
+      container.querySelectorAll('#dcTimelineList .tl-item-final').forEach((row, i) => {
+        const time = clean(row.querySelector('[data-type="time"]'));
+        const subjName = clean(row.querySelector('[data-type="subject"]'));
+        const existingSid = row.getAttribute('data-subject-id');
+        if (time || subjName) {
+          const matched = findSubject(subjects, existingSid, subjName);
+          periodRows.push({
+            period_number: i + 1,
+            time_range: time || '07.00 - 08.00',
+            subject_name: subjName || (matched && matched.name) || 'Mata Pelajaran',
+            subject_id: matched ? matched.id : (existingSid ? Number(existingSid) : null)
+          });
+        }
+      });
+
+      const picketMembers = [];
+      container.querySelectorAll('#dcPicketList .picket-pill [data-type="picket"]').forEach((span) => {
+        const name = clean(span);
+        if (name && name !== 'Belum diatur') picketMembers.push(name);
+      });
+
+      return {
+        day_of_week: Number(activeDayNum),
+        day_name: DAY_NAMES[activeDayNum] || 'Senin',
+        uniform: clean(uniformEl) || '-',
+        activity: clean(activityEl) || '-',
+        note: clean(notesEl) || '-',
+        picket_members: picketMembers,
+        periods: periodRows,
+        is_school: dayObj.is_school !== undefined ? dayObj.is_school : (Number(activeDayNum) !== 6 && Number(activeDayNum) !== 7)
+      };
+    };
+
     // Navigasi tab hari pada Daily Card.
     const dayTabs = container.querySelector('#dcDayTabs');
     if (dayTabs && typeof onSelectDay === 'function') {
       dayTabs.querySelectorAll('[data-dc-day]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          onSelectDay(Number(btn.getAttribute('data-dc-day')));
+          const targetDay = Number(btn.getAttribute('data-dc-day'));
+          if (targetDay === Number(activeDayNum)) return;
+
+          let currentDraft = null;
+          if (cardEl.classList.contains('edit-mode-on')) {
+            currentDraft = extractCurrentDayPayload();
+          }
+          onSelectDay(targetDay, currentDraft);
         });
       });
     }
@@ -413,7 +469,7 @@
       cancelEditBtn.addEventListener('click', () => {
         setInlineEditMode(false);
         if (typeof onToggleEditMode === 'function') onToggleEditMode(false);
-        renderDailyCard(container, { ...options, isEditing: false });
+        renderDailyCard(container, { ...options, isEditing: false, scheduleDrafts: {} });
       });
     }
 
@@ -452,8 +508,8 @@
       });
     }
 
-    // Delete item listener (delegated)
-    container.addEventListener('click', (e) => {
+    // Delete item listener (delegated pada cardEl agar tidak terduplikasi saat re-render)
+    cardEl.addEventListener('click', (e) => {
       const delBtn = e.target.closest('[data-del]');
       if (!delBtn) return;
       e.stopPropagation();
@@ -467,53 +523,18 @@
       }
     });
 
-    // Save Drafts
+    // Save Drafts (Menyimpan semua hari yang diedit sekaligus)
     if (saveEditBtn && onSaveDailyCard) {
       saveEditBtn.addEventListener('click', async () => {
         saveEditBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         saveEditBtn.disabled = true;
 
-        const uniformEl = container.querySelector('[data-type="uniform"]');
-        const activityEl = container.querySelector('[data-type="activity"]');
-        const notesEl = container.querySelector('[data-type="notes"]');
-
-        const clean = (el) => (el ? el.innerText.trim() : '');
-
-        // Gather periods
-        const periodRows = [];
-        container.querySelectorAll('#dcTimelineList .tl-item-final').forEach((row, i) => {
-          const time = clean(row.querySelector('[data-type="time"]'));
-          const subjName = clean(row.querySelector('[data-type="subject"]'));
-          if (time || subjName) {
-            // Cocokkan nama mapel dengan toleransi alias (B. Inggris dsb).
-            const matched = findSubject(subjects, null, subjName);
-            periodRows.push({
-              period_number: i + 1,
-              time_range: time || '07.00 - 08.00',
-              subject_name: subjName || 'Mata Pelajaran',
-              subject_id: matched ? matched.id : null
-            });
-          }
-        });
-
-        // Gather pickets
-        const picketMembers = [];
-        container.querySelectorAll('#dcPicketList .picket-pill [data-type="picket"]').forEach((span) => {
-          const name = clean(span);
-          if (name && name !== 'Belum diatur') picketMembers.push(name);
-        });
-
-        const payload = {
-          uniform: clean(uniformEl) || '-',
-          activity: clean(activityEl) || '-',
-          note: clean(notesEl) || '-',
-          picket_members: picketMembers,
-          periods: periodRows,
-          is_school: dayObj.is_school !== undefined ? dayObj.is_school : (activeDayNum < 6)
-        };
+        const currentDayDraft = extractCurrentDayPayload();
+        const allDrafts = { ...(scheduleDrafts || {}) };
+        allDrafts[Number(activeDayNum)] = currentDayDraft;
 
         try {
-          await onSaveDailyCard(activeDayNum, payload);
+          await onSaveDailyCard(allDrafts);
           setInlineEditMode(false);
           if (typeof onToggleEditMode === 'function') onToggleEditMode(false);
         } catch (err) {
