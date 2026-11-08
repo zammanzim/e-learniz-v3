@@ -77,6 +77,7 @@
             <div class="dropdown-class-sublist" id="classSwitcherDropdown"></div>
           </div>
 
+          <a href="#" id="dropdownGoMateri"><i class="fa-solid fa-book-bookmark"></i> Materi Pembelajaran</a>
           <a href="#" id="dropdownGoTugas"><i class="fa-solid fa-list-check"></i> Progres Tugas Saya</a>
           <a href="#" id="visitorTrigger" class="dropdown-visitor-item" role="button">
             <span><i class="fa-solid fa-eye"></i> Pengunjung</span>
@@ -103,6 +104,11 @@
       <li class="active" data-nav="home">
         <i class="fa-solid fa-house"></i>
         <span>Beranda</span>
+      </li>
+      <li data-nav="materi">
+        <i class="fa-solid fa-book-bookmark"></i>
+        <span>Materi Pelajaran</span>
+        <span class="sidebar-badge" id="sidebarMateriBadge" style="display:none;">0</span>
       </li>
       <li data-nav="tugas">
         <i class="fa-solid fa-list-check"></i>
@@ -191,6 +197,39 @@
       </div>
     </section>
 
+    <!-- 2B. HALAMAN MATERI PELAJARAN -->
+    <section class="page-view" id="viewMateri">
+      <div class="main-layout">
+        <div class="left-section">
+          <h1 class="page-heading-title">
+            <i class="fa-solid fa-book-bookmark"></i> Materi Pelajaran
+          </h1>
+          <div id="userMateriProfile"></div>
+        </div>
+
+        <div class="right-section">
+          <div class="right-section-header">
+            <h3><i class="fa-solid fa-book-open-reader"></i> Semua Materi Kelas</h3>
+            <button class="btn-inline-add admin-only" id="btnAddMateriQuick" type="button" style="display:none;">
+              <i class="fa-solid fa-plus"></i> Tambah Materi
+            </button>
+          </div>
+
+          <!-- Materi Search Box -->
+          <div class="tugas-search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="materiSearchInput" placeholder="Cari materi berdasarkan judul, bab, catatan, atau mapel..." />
+          </div>
+          
+          <!-- Filter Chips per Mata Pelajaran -->
+          <div id="materiMapelFilterChips" class="mapel-chips-row"></div>
+
+          <!-- Daftar Course Card Materi -->
+          <div id="materiList" class="cards-stack"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- 3. HALAMAN SUBJECT (MATA PELAJARAN) -->
     <section class="page-view" id="viewSubject">
       <!-- Container Overview Semua Mapel (Req 14: Jika tanpa parameter mapel) -->
@@ -220,7 +259,7 @@
               <div class="sic-title-wrap">
                 <div class="sic-header-line">
                   <h2 class="sic-subject-name" id="subjectName">Mata Pelajaran</h2>
-                  <span class="status-badge" id="subjectStatus"><i class="fa-solid fa-circle-check"></i> AKTIF</span>
+                  <span class="status-badge" id="subjectStatus" style="display:none;"></span>
                 </div>
 
                 <div class="sic-teacher-row">
@@ -341,6 +380,10 @@
       <i class="fa-solid fa-house"></i>
       <span>Beranda</span>
     </a>
+    <a href="#materi" class="bn-item" data-bn-nav="materi">
+      <i class="fa-solid fa-book-bookmark"></i>
+      <span>Materi</span>
+    </a>
     <a href="#tugas" class="bn-item" data-bn-nav="tugas">
       <i class="fa-solid fa-list-check"></i>
       <span>Tugas</span>
@@ -373,7 +416,7 @@
           <div class="slider-spinner" id="sliderSpinner">
             <i class="fa-solid fa-circle-notch fa-spin"></i>
           </div>
-          <img id="detailImg" src="" alt="Foto Lampiran" />
+          <div class="slider-track" id="detailSliderTrack"></div>
 
           <!-- Modern Navigation Arrows -->
           <div id="sliderNavBtns" class="slider-nav-container">
@@ -393,9 +436,6 @@
             <span id="pvTotalIdx">1</span>
           </div>
 
-          <!-- Interactive Carousel Dots -->
-          <div class="slider-dots-container" id="sliderDotsContainer"></div>
-
           <!-- Modern Floating Action Capsule for Mobile -->
           <button type="button" id="toggleInfoBtn" class="modern-floating-info-pill" aria-label="Buka Deskripsi dan Detail">
             <span class="info-pill-icon"><i class="fa-solid fa-file-lines"></i></span>
@@ -404,6 +444,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Backdrop overlay for mobile description sheet (tap empty area to close) -->
+      <div class="detail-sheet-backdrop" id="detailSheetBackdrop" aria-hidden="true"></div>
 
       <!-- Info Section: Description & Task (Right on Desktop / Bottom Sheet on Mobile) -->
       <div class="detail-info-section" id="detailInfoSection">
@@ -476,17 +519,17 @@
           </div>
         </div>
 
-        <!-- Modern Drag & Drop R2 Image Uploader -->
+        <!-- Modern Drag & Drop R2 File Uploader -->
         <div class="form-group">
-          <label><i class="fa-solid fa-images"></i> Foto & Lampiran (Cloudflare R2)</label>
+          <label><i class="fa-solid fa-paperclip"></i> Berkas & Lampiran (Cloudflare R2)</label>
           <div class="dropzone" id="cfDropzone">
-            <input type="file" id="cfImageFile" accept="image/*" multiple style="display:none;" />
+            <input type="file" id="cfImageFile" multiple style="display:none;" />
             <div class="dropzone-icon">
               <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <div class="dropzone-text">
-              <p class="dropzone-main-text"><strong>Tarik & lepas foto ke sini</strong>, atau <span class="dropzone-browse">pilih file</span></p>
-              <p class="dropzone-sub-text">Mendukung JPG, PNG, WebP, GIF (bisa upload banyak sekaligus)</p>
+              <p class="dropzone-main-text"><strong>Tarik & lepas berkas ke sini</strong>, atau <span class="dropzone-browse">pilih file</span></p>
+              <p class="dropzone-sub-text">Mendukung Dokumen (PDF, Word, PPT, Excel), Video, Foto & Berkas lainnya</p>
             </div>
           </div>
           <input type="hidden" id="cfImages" />

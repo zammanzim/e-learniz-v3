@@ -19,11 +19,15 @@
     completedTaskIds: new Set(),
 
     // Navigation state
-    activeView: 'home', // 'home' | 'tugas' | 'subject'
+    activeView: 'home', // 'home' | 'materi' | 'tugas' | 'subject'
     activeSubjectId: null,
     selectedDayOfWeek: null,
     isDailyCardEditing: false,
     scheduleDrafts: {},
+
+    // Materi filter state
+    materiMapelFilter: 'all',
+    materiSearchQuery: '',
 
     // Tugas filter state
     taskTab: 'pending', // 'pending' | 'done' | 'all'
@@ -50,6 +54,7 @@
   async function initApp() {
     bindModals();
     bindTaskFilters();
+    bindMateriToolbar();
     bindSubjectToolbar();
     bindAdminControls();
 
@@ -67,6 +72,7 @@
     // Navigation callbacks
     window.ELearnizSidebar.initNavigation({
       onNavigateHome: () => switchView('home'),
+      onNavigateMateri: () => switchView('materi'),
       onNavigateTugas: () => switchView('tugas'),
       onNavigateSubject: (sid) => {
         switchView('subject', sid || null);
@@ -182,6 +188,14 @@
         e.preventDefault();
         window.ELearnizAuth.logout();
         window.location.href = 'login.html';
+      };
+    }
+
+    const goMateriLink = document.getElementById('dropdownGoMateri');
+    if (goMateriLink) {
+      goMateriLink.onclick = (e) => {
+        e.preventDefault();
+        switchView('materi');
       };
     }
 
@@ -314,7 +328,7 @@
   }
 
   /* ------------------------------------------------------------------------
-     VIEW ROUTING & HASH ROUTER (Beranda, Daftar Tugas, Subject)
+     VIEW ROUTING & HASH ROUTER (Beranda, Materi, Daftar Tugas, Subject)
      ------------------------------------------------------------------------ */
   function handleRouteFromHash() {
     const rawHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
@@ -328,6 +342,8 @@
 
     if (route === 'tugas' || route === 'task' || route === 'tasks') {
       switchView('tugas', null, false);
+    } else if (route === 'materi' || route === 'material' || route === 'materials') {
+      switchView('materi', null, false);
     } else if (route === 'mapel' || route === 'subject' || route === 'subjects') {
       const subjectKey = parts[1];
       if (subjectKey) {
@@ -344,6 +360,7 @@
 
   function routeHashFor(viewName) {
     if (viewName === 'tugas') return '#/tugas';
+    if (viewName === 'materi') return '#/materi';
     if (viewName === 'subject') {
       if (!state.activeSubjectId) return '#/mapel';
       const subj = state.subjects.find((s) => String(s.id) === String(state.activeSubjectId));
@@ -364,6 +381,7 @@
     }
 
     document.getElementById('viewHome').classList.toggle('active', viewName === 'home');
+    document.getElementById('viewMateri').classList.toggle('active', viewName === 'materi');
     document.getElementById('viewTugas').classList.toggle('active', viewName === 'tugas');
     document.getElementById('viewSubject').classList.toggle('active', viewName === 'subject');
 
@@ -460,7 +478,8 @@
   }
 
   function renderAllViews() {
-    // Compute pending tasks per subject & total
+    // Compute materi & pending tasks per subject & total
+    const allMateriCards = state.cards.filter((c) => Boolean(c.subject_id) && (!c.has_task || c.kind === 'materi'));
     const taskCards = state.cards.filter((c) => c.has_task);
     const pendingTaskCards = taskCards.filter((c) => !state.completedTaskIds.has(String(c.id)));
     const pendingBySubject = {};
@@ -473,7 +492,13 @@
 
     const priorityMap = buildSchedulePriorityMap();
 
-    // Update Sidebar pending badge & subject list
+    // Update Sidebar badges & subject list
+    const sbMateriBadge = document.getElementById('sidebarMateriBadge');
+    if (sbMateriBadge) {
+      sbMateriBadge.textContent = String(allMateriCards.length);
+      sbMateriBadge.style.display = allMateriCards.length > 0 ? 'inline-block' : 'none';
+    }
+
     const sbBadge = document.getElementById('sidebarPendingBadge');
     if (sbBadge) {
       sbBadge.textContent = String(pendingTaskCards.length);
@@ -488,6 +513,7 @@
     );
 
     if (state.activeView === 'home') renderHomeView(pendingTaskCards.length, priorityMap);
+    else if (state.activeView === 'materi') renderMateriView(allMateriCards, priorityMap);
     else if (state.activeView === 'tugas') renderTugasView(taskCards, pendingTaskCards, priorityMap);
     else if (state.activeView === 'subject') renderSubjectView(priorityMap);
   }
@@ -745,6 +771,125 @@
   }
 
   /* ------------------------------------------------------------------------
+     2B. HALAMAN MATERI PELAJARAN (#userMateriProfile + Mapel Chips + Search)
+     ------------------------------------------------------------------------ */
+  function bindMateriToolbar() {
+    const searchInput = document.getElementById('materiSearchInput');
+    if (searchInput && !searchInput.dataset.bound) {
+      searchInput.dataset.bound = 'true';
+      let t = null;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          state.materiSearchQuery = searchInput.value.trim().toLowerCase();
+          renderMateriOnly();
+        }, 140);
+      });
+    }
+  }
+
+  function renderMateriOnly() {
+    const allMateriCards = state.cards.filter((c) => Boolean(c.subject_id) && (!c.has_task || c.kind === 'materi'));
+    renderMateriView(allMateriCards, buildSchedulePriorityMap());
+  }
+
+  function renderMateriView(allMateriCards, priorityMap = {}) {
+    const profileContainer = document.getElementById('userMateriProfile');
+    const totalCount = allMateriCards.length;
+
+    const subjectsWithMateri = state.subjects.filter((s) =>
+      allMateriCards.some((c) => String(c.subject_id) === String(s.id))
+    );
+
+    if (window.ELearnizCards && window.ELearnizCards.renderUserMateriProfile) {
+      window.ELearnizCards.renderUserMateriProfile(
+        profileContainer,
+        state.currentUser,
+        totalCount,
+        subjectsWithMateri.length
+      );
+    }
+
+    // Mapel Filter Chips
+    const chipsContainer = document.getElementById('materiMapelFilterChips');
+    if (chipsContainer) {
+      const esc = window.ELearnizCards.escapeHtml;
+      const safeColor = window.ELearnizUI.safeColor;
+      const countFor = (sid) => allMateriCards.filter((c) => String(c.subject_id) === String(sid)).length;
+      const iconFor = (icon) => {
+        const value = String(icon || 'fa-book');
+        return /^fa-[a-z0-9-]+$/i.test(value) ? `fa-solid ${value}` : 'fa-solid fa-book';
+      };
+
+      chipsContainer.innerHTML = [
+        `<button type="button" class="mapel-chip-tugas ${state.materiMapelFilter === 'all' ? 'active' : ''}" data-materi-chip="all">
+          <i class="fa-solid fa-layer-group"></i> <span>Semua Mapel</span>
+          <span class="mapel-chip-count">${totalCount}</span>
+        </button>`,
+        ...subjectsWithMateri.map((s) => `
+          <button type="button" class="mapel-chip-tugas ${String(state.materiMapelFilter) === String(s.id) ? 'active' : ''}" data-materi-chip="${esc(s.id)}">
+            <i class="${iconFor(s.icon)}" style="color:${safeColor(s.color)}"></i>
+            <span>${esc(s.name)}</span>
+            <span class="mapel-chip-count">${countFor(s.id)}</span>
+          </button>
+        `)
+      ].join('');
+
+      chipsContainer.querySelectorAll('[data-materi-chip]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          state.materiMapelFilter = chip.getAttribute('data-materi-chip');
+          renderAllViews();
+        });
+      });
+    }
+
+    // Filter materi cards by Mapel and Search Query
+    let filtered = allMateriCards;
+    if (state.materiMapelFilter !== 'all') {
+      filtered = filtered.filter((c) => String(c.subject_id) === String(state.materiMapelFilter));
+    }
+    if (state.materiSearchQuery) {
+      const q = state.materiSearchQuery;
+      filtered = filtered.filter((c) => {
+        const subj = c.subject_id ? state.subjectsMap[String(c.subject_id)] : null;
+        const sName = subj ? subj.name.toLowerCase() : '';
+        const big = (c.big_title || '').toLowerCase();
+        const sub = (c.title || '').toLowerCase();
+        const content = (c.content || '').toLowerCase();
+        const small = (c.small || '').toLowerCase();
+        return big.includes(q) || sub.includes(q) || content.includes(q) || small.includes(q) || sName.includes(q);
+      });
+    }
+
+    filtered = sortCardsByPriority(filtered, priorityMap);
+
+    const materiListContainer = document.getElementById('materiList');
+    const isSearchActive = Boolean(state.materiSearchQuery);
+    let emptyTitle = 'Belum Ada Materi Pembelajaran';
+    let emptySubtitle = 'Materi pembelajaran dari bapak/ibu guru akan muncul di daftar ini.';
+
+    if (isSearchActive) {
+      emptyTitle = 'Tidak Ada Materi Ditemukan';
+      emptySubtitle = `Tidak ada materi yang cocok dengan kata kunci "${state.materiSearchQuery}".`;
+    }
+
+    window.ELearnizCards.renderCourseCardList(materiListContainer, filtered, {
+      completedTaskSet: state.completedTaskIds,
+      subjectsMap: state.subjectsMap,
+      showSubjectOrigin: true,
+      isAdmin: state.isAdmin,
+      priorityMap,
+      hideTaskChecklist: true,
+      emptyTitle,
+      emptySubtitle,
+      onOpenDetail: openCardDetailModal,
+      onEditCard: openEditCardModal,
+      onDeleteCard: handleDeleteCard,
+      onTogglePin: handleTogglePinCard
+    });
+  }
+
+  /* ------------------------------------------------------------------------
      3. HALAMAN SUBJECT (#subjectInfoCard + Search/Chips + Course Cards)
      ------------------------------------------------------------------------ */
   function bindSubjectToolbar() {
@@ -946,9 +1091,11 @@
       if (subject.is_locked) {
         statusEl.innerHTML = '<i class="fa-solid fa-lock"></i> TERKUNCI';
         statusEl.className = 'status-badge locked';
+        statusEl.style.display = 'inline-flex';
       } else {
-        statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> AKTIF';
-        statusEl.className = 'status-badge active';
+        statusEl.innerHTML = '';
+        statusEl.className = 'status-badge';
+        statusEl.style.display = 'none';
       }
     }
     if (teacherNameEl) {
@@ -1083,133 +1230,209 @@
   }
 
   /* ------------------------------------------------------------------------
-     DETAIL MODAL & PHOTO SLIDER (Adapted from E-Learniz v2 Architecture)
+     DETAIL MODAL & PHOTO SLIDER (Hardware-Accelerated Carousel Track)
      ------------------------------------------------------------------------ */
   let currentViewerPhotos = [];
   let currentViewerIndex = 0;
 
-  function updateSliderUI() {
-    const imgEl = document.getElementById('detailImg');
+  function initSliderTrack(photos, initialIndex = 0) {
+    const track = document.getElementById('detailSliderTrack');
     const nav = document.getElementById('sliderNavBtns');
-    const wrapper = document.getElementById('detailSliderWrapper');
     const counterPill = document.getElementById('photoCounterTag');
     const currentIdxEl = document.getElementById('pvCurrentIdx');
     const totalIdxEl = document.getElementById('pvTotalIdx');
-    const dotsContainer = document.getElementById('sliderDotsContainer');
 
-    if (!imgEl || !wrapper) return;
+    currentViewerPhotos = Array.isArray(photos) ? photos.filter(Boolean) : [];
+    currentViewerIndex = (initialIndex >= 0 && initialIndex < currentViewerPhotos.length) ? initialIndex : 0;
+
+    if (!track) return;
 
     if (currentViewerPhotos.length === 0) {
-      imgEl.src = '';
+      track.innerHTML = '';
       if (nav) nav.style.display = 'none';
       if (counterPill) counterPill.style.display = 'none';
-      if (dotsContainer) dotsContainer.style.display = 'none';
       return;
     }
 
+    // Render all slides once with async image decoding and GPU acceleration
+    const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
+    const classify = (window.ELearnizCards && window.ELearnizCards.classifyAttachment)
+      ? window.ELearnizCards.classifyAttachment
+      : ((u) => ({ type: 'image', name: 'Berkas', ext: '', icon: 'fa-solid fa-file', color: '#2563eb' }));
+
+    track.innerHTML = currentViewerPhotos.map((url, i) => {
+      const meta = classify(url);
+      if (meta.type === 'video') {
+        return `
+          <div class="slider-slide is-video-slide" data-slide-index="${i}">
+            <video src="${esc(url)}" controls playsinline preload="metadata" class="slider-video-player"></video>
+          </div>
+        `;
+      }
+      if (meta.type === 'image') {
+        return `
+          <div class="slider-slide" data-slide-index="${i}">
+            <img src="${esc(url)}" alt="Lampiran ${i + 1}" decoding="async" loading="eager" />
+          </div>
+        `;
+      }
+      // Non-visual documents (PDF, Word, PPT, Excel, ZIP, dll)
+      return `
+        <div class="slider-slide is-file-slide" data-slide-index="${i}">
+          <div class="slide-file-card">
+            <div class="slide-file-icon" style="color: ${meta.color}">
+              <i class="${meta.icon}"></i>
+            </div>
+            <h3 class="slide-file-name">${esc(meta.name)}</h3>
+            <span class="slide-file-badge">${esc(meta.ext.toUpperCase())} Berkas</span>
+            <div class="slide-file-actions">
+              <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="btn-primary slide-file-btn">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Berkas
+              </a>
+              <a href="${esc(url)}" download="${esc(meta.name)}" class="btn-secondary slide-file-btn">
+                <i class="fa-solid fa-download"></i> Unduh
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Counter
     if (counterPill) {
       counterPill.style.display = 'inline-flex';
       if (currentIdxEl) currentIdxEl.textContent = String(currentViewerIndex + 1);
       if (totalIdxEl) totalIdxEl.textContent = String(currentViewerPhotos.length);
     }
 
-    wrapper.classList.add('loading');
-    const currentUrl = currentViewerPhotos[currentViewerIndex];
+    // Set initial position instantly without transition
+    track.style.transition = 'none';
+    track.style.transform = `translate3d(-${currentViewerIndex * 100}%, 0, 0)`;
+    track.offsetHeight; // Force layout flush
+    track.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
 
-    imgEl.onload = () => {
-      wrapper.classList.remove('loading');
-    };
-    imgEl.onerror = () => {
-      wrapper.classList.remove('loading');
-    };
-    imgEl.src = currentUrl;
-    if (imgEl.complete && imgEl.naturalWidth > 0) {
-      wrapper.classList.remove('loading');
+    updateSlideNavButtons();
+  }
+
+  function goToSlide(newIndex, animate = true) {
+    if (newIndex < 0 || newIndex >= currentViewerPhotos.length) return;
+    const track = document.getElementById('detailSliderTrack');
+    const currentIdxEl = document.getElementById('pvCurrentIdx');
+
+    currentViewerIndex = newIndex;
+
+    if (track) {
+      track.style.transition = animate ? 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+      track.style.transform = `translate3d(-${currentViewerIndex * 100}%, 0, 0)`;
     }
 
+    if (currentIdxEl) {
+      currentIdxEl.textContent = String(currentViewerIndex + 1);
+    }
+
+    updateSlideNavButtons();
+  }
+
+  function updateSlideNavButtons() {
+    const nav = document.getElementById('sliderNavBtns');
+    if (!nav) return;
     const isMulti = currentViewerPhotos.length > 1;
-    if (nav) {
-      nav.style.display = isMulti ? 'flex' : 'none';
-      if (isMulti) {
-        const btnPrev = nav.querySelector('.prev-btn');
-        const btnNext = nav.querySelector('.next-btn');
-        if (btnPrev) btnPrev.style.visibility = (currentViewerIndex === 0) ? 'hidden' : 'visible';
-        if (btnNext) btnNext.style.visibility = (currentViewerIndex === currentViewerPhotos.length - 1) ? 'hidden' : 'visible';
-      }
-    }
-
-    // Interactive Carousel Dots
-    if (dotsContainer) {
-      if (isMulti) {
-        dotsContainer.style.display = 'flex';
-        dotsContainer.innerHTML = currentViewerPhotos.map((_, idx) => `
-          <button type="button" class="slider-dot ${idx === currentViewerIndex ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Lompat ke foto ${idx + 1}"></button>
-        `).join('');
-
-        dotsContainer.querySelectorAll('.slider-dot').forEach((dot) => {
-          dot.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const targetIdx = parseInt(dot.getAttribute('data-dot-idx'), 10);
-            if (!isNaN(targetIdx) && targetIdx !== currentViewerIndex) {
-              currentViewerIndex = targetIdx;
-              updateSliderUI();
-            }
-          });
-        });
-      } else {
-        dotsContainer.style.display = 'none';
-      }
+    nav.style.display = isMulti ? 'flex' : 'none';
+    if (isMulti) {
+      const btnPrev = nav.querySelector('.prev-btn');
+      const btnNext = nav.querySelector('.next-btn');
+      if (btnPrev) btnPrev.style.visibility = (currentViewerIndex === 0) ? 'hidden' : 'visible';
+      if (btnNext) btnNext.style.visibility = (currentViewerIndex === currentViewerPhotos.length - 1) ? 'hidden' : 'visible';
     }
   }
 
   function nextSlide(e) {
     if (e && e.stopPropagation) e.stopPropagation();
     if (currentViewerIndex < currentViewerPhotos.length - 1) {
-      currentViewerIndex++;
-      updateSliderUI();
+      goToSlide(currentViewerIndex + 1);
     }
   }
 
   function prevSlide(e) {
     if (e && e.stopPropagation) e.stopPropagation();
     if (currentViewerIndex > 0) {
-      currentViewerIndex--;
-      updateSliderUI();
+      goToSlide(currentViewerIndex - 1);
     }
   }
 
-  // Swipe gesture for detail photo slider
+  function updateSliderUI() {
+    goToSlide(currentViewerIndex);
+  }
+
+  // Interactive touch swipe gesture for detail photo slider (60fps drag & snap)
   (function initPhotoSliderSwipe() {
     let touchStartX = 0;
     let touchStartY = 0;
+    let currentDx = 0;
     let isSwiping = false;
+    let isHorizontal = null;
 
     document.addEventListener('touchstart', (e) => {
       const modal = document.getElementById('cardDetailModal');
       if (!modal || !modal.classList.contains('is-open')) return;
       if (!e.target.closest('#detailSliderWrapper')) return;
+      if (e.target.closest('.modern-slider-arrow, .slider-dot, .modern-floating-info-pill, .photo-counter-pill, .close-detail-btn')) return;
       if (currentViewerPhotos.length <= 1) return;
 
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
+      currentDx = 0;
       isSwiping = true;
+      isHorizontal = null;
+
+      const track = document.getElementById('detailSliderTrack');
+      if (track) track.style.transition = 'none';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isSwiping || currentViewerPhotos.length <= 1) return;
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      const dx = x - touchStartX;
+      const dy = y - touchStartY;
+
+      if (isHorizontal === null) {
+        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+          isHorizontal = Math.abs(dx) > Math.abs(dy);
+        }
+      }
+
+      if (!isHorizontal) return;
+
+      currentDx = dx;
+      const track = document.getElementById('detailSliderTrack');
+      if (track) {
+        let pull = dx;
+        if ((currentViewerIndex === 0 && dx > 0) || (currentViewerIndex === currentViewerPhotos.length - 1 && dx < 0)) {
+          pull = dx * 0.28;
+        }
+        track.style.transform = `translate3d(calc(-${currentViewerIndex * 100}% + ${pull}px), 0, 0)`;
+      }
     }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
       if (!isSwiping) return;
       isSwiping = false;
 
-      const modal = document.getElementById('cardDetailModal');
-      if (!modal || !modal.classList.contains('is-open')) return;
-      if (currentViewerPhotos.length <= 1) return;
+      if (!isHorizontal || currentViewerPhotos.length <= 1) return;
 
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      const dy = e.changedTouches[0].clientY - touchStartY;
+      const track = document.getElementById('detailSliderTrack');
+      if (track) {
+        track.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+      }
 
-      if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
-
-      if (dx < 0) nextSlide();
-      else prevSlide();
+      if (currentDx < -40 && currentViewerIndex < currentViewerPhotos.length - 1) {
+        goToSlide(currentViewerIndex + 1);
+      } else if (currentDx > 40 && currentViewerIndex > 0) {
+        goToSlide(currentViewerIndex - 1);
+      } else {
+        goToSlide(currentViewerIndex);
+      }
     }, { passive: true });
   })();
 
@@ -1258,16 +1481,15 @@
     if (!modal || !detailBox || !infoContent) return;
 
     let photos = [];
-    if (card.images) {
-      if (Array.isArray(card.images)) {
-        photos = card.images.filter(Boolean);
-      } else if (typeof card.images === 'string') {
-        try {
-          const parsed = JSON.parse(card.images);
-          photos = Array.isArray(parsed) ? parsed.filter(Boolean) : [card.images];
-        } catch {
-          photos = [card.images];
-        }
+    const rawPhotos = card.images || card.photos || card.photo_url || [];
+    if (Array.isArray(rawPhotos)) {
+      photos = rawPhotos.filter(Boolean);
+    } else if (typeof rawPhotos === 'string') {
+      try {
+        const parsed = JSON.parse(rawPhotos);
+        photos = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhotos];
+      } catch {
+        photos = [rawPhotos];
       }
     }
 
@@ -1294,9 +1516,7 @@
       if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
     }
 
-    currentViewerPhotos = photos;
-    currentViewerIndex = (photoIndex >= 0 && photoIndex < photos.length) ? photoIndex : 0;
-    updateSliderUI();
+    initSliderTrack(photos, photoIndex);
 
     const subj = card.subject_id ? state.subjectsMap[String(card.subject_id)] : null;
     const isDone = state.completedTaskIds.has(String(card.id));
@@ -1392,8 +1612,8 @@
         ` : ''}
 
         <span class="detail-badge type-badge ${card.has_task ? 'is-task' : 'is-info'}">
-          <i class="fa-solid ${card.has_task ? 'fa-list-check' : 'fa-bullhorn'}"></i>
-          <span>${card.has_task ? 'Tugas Kelas' : 'Pengumuman'}</span>
+          <i class="fa-solid ${card.has_task ? 'fa-list-check' : (subj ? 'fa-book-bookmark' : 'fa-bullhorn')}"></i>
+          <span>${card.has_task ? 'Tugas Kelas' : (subj ? 'Materi Pelajaran' : 'Pengumuman')}</span>
         </span>
 
         ${dueBadgeLabel ? `
@@ -1414,6 +1634,38 @@
       ${card.content ? `
         <div class="detail-body-card">
           ${formatContent(card.content)}
+        </div>
+      ` : ''}
+
+      ${(photos.length > 0) ? `
+        <div class="detail-attachments-box">
+          <h4 class="detail-attachments-title">
+            <i class="fa-solid fa-paperclip"></i> Lampiran & Berkas (${photos.length})
+          </h4>
+          <div class="detail-attachments-list">
+            ${photos.map((url) => {
+              const m = classify(url);
+              return `
+                <div class="detail-att-item">
+                  <span class="detail-att-icon" style="color: ${m.color};">
+                    <i class="${m.icon}"></i>
+                  </span>
+                  <div class="detail-att-meta">
+                    <span class="detail-att-name" title="${esc(m.name)}">${esc(m.name)}</span>
+                    <span class="detail-att-tag">${esc(m.ext.toUpperCase())}</span>
+                  </div>
+                  <div class="detail-att-actions">
+                    <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="detail-att-btn" title="Buka di tab baru">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                    <a href="${esc(url)}" download="${esc(m.name)}" class="detail-att-btn is-download" title="Unduh berkas">
+                      <i class="fa-solid fa-download"></i>
+                    </a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
       ` : ''}
 
@@ -1447,26 +1699,107 @@
     if (prevBtn) prevBtn.onclick = prevSlide;
     if (nextBtn) nextBtn.onclick = nextSlide;
 
+    const detailSheetBackdrop = document.getElementById('detailSheetBackdrop');
+
+    // Immersive Mode: Auto-hide photo controls after 5 seconds of inactivity
+    let detailInactivityTimer = null;
+
+    function showViewerControls() {
+      detailBox.classList.remove('controls-hidden');
+    }
+
+    function hideViewerControls() {
+      // Don't auto-hide if user is currently reading the mobile description sheet
+      if (infoSection && !infoSection.classList.contains('hidden-mobile') && window.innerWidth <= 768) {
+        return;
+      }
+      detailBox.classList.add('controls-hidden');
+    }
+
+    function restartViewerInactivityTimer() {
+      showViewerControls();
+      if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
+      if (photos.length > 0) {
+        detailInactivityTimer = setTimeout(() => {
+          hideViewerControls();
+        }, 5000);
+      }
+    }
+
+    const interactionEvents = ['pointerdown', 'pointermove', 'touchstart', 'click'];
+    const handleViewerInteraction = () => {
+      restartViewerInactivityTimer();
+    };
+
+    interactionEvents.forEach((ev) => {
+      detailBox.addEventListener(ev, handleViewerInteraction, { passive: true });
+    });
+
+    const closeObserver = new MutationObserver(() => {
+      if (!modal.classList.contains('is-open')) {
+        if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
+        detailBox.classList.remove('controls-hidden');
+        if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
+        interactionEvents.forEach((ev) => {
+          detailBox.removeEventListener(ev, handleViewerInteraction);
+        });
+        closeObserver.disconnect();
+      }
+    });
+    closeObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+    // Mobile Description Sheet Controls
+    function openMobileSheet() {
+      if (!infoSection) return;
+      infoSection.style.transform = '';
+      infoSection.style.transition = '';
+      infoSection.classList.remove('hidden-mobile');
+      if (detailSheetBackdrop) detailSheetBackdrop.classList.add('is-active');
+      if (toggleInfoBtn) toggleInfoBtn.style.display = 'none';
+      showViewerControls();
+      if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
+    }
+
+    function closeMobileSheet() {
+      if (!infoSection) return;
+      infoSection.style.transition = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
+      infoSection.style.transform = 'translate3d(0, 105%, 0)';
+      if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
+      setTimeout(() => {
+        infoSection.classList.add('hidden-mobile');
+        infoSection.classList.remove('full-screen');
+        infoSection.style.transform = '';
+        infoSection.style.transition = '';
+        if (toggleInfoBtn) toggleInfoBtn.style.display = 'flex';
+        if (sheetToggleBtn) {
+          const icon = sheetToggleBtn.querySelector('i');
+          if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+        }
+        restartViewerInactivityTimer();
+      }, 280);
+    }
+
+    infoSection._closeMobileSheet = closeMobileSheet;
+
     if (toggleInfoBtn) {
       toggleInfoBtn.onclick = (e) => {
         if (e && e.stopPropagation) e.stopPropagation();
-        if (infoSection) infoSection.classList.remove('hidden-mobile');
-        toggleInfoBtn.style.display = 'none';
+        openMobileSheet();
       };
     }
 
     if (sheetCloseBtn) {
       sheetCloseBtn.onclick = (e) => {
         if (e && e.stopPropagation) e.stopPropagation();
-        if (infoSection) {
-          infoSection.classList.add('hidden-mobile');
-          infoSection.classList.remove('full-screen');
-        }
-        if (toggleInfoBtn) toggleInfoBtn.style.display = 'flex';
-        if (sheetToggleBtn) {
-          const icon = sheetToggleBtn.querySelector('i');
-          if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
-        }
+        closeMobileSheet();
+      };
+    }
+
+    // Tap empty area above sheet to dismiss
+    if (detailSheetBackdrop) {
+      detailSheetBackdrop.onclick = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        closeMobileSheet();
       };
     }
 
@@ -1474,11 +1807,101 @@
       sheetToggleBtn.onclick = (e) => {
         if (e && e.stopPropagation) e.stopPropagation();
         if (!infoSection) return;
+        infoSection.style.transform = '';
+        infoSection.style.transition = '';
         const isFull = infoSection.classList.toggle('full-screen');
         const icon = sheetToggleBtn.querySelector('i');
         if (icon) icon.className = isFull ? 'fa-solid fa-down-left-and-up-right-to-center' : 'fa-solid fa-up-right-and-down-left-from-center';
       };
     }
+
+    // Gesture swipe/drag to dismiss or expand mobile sheet
+    const sheetHeader = infoSection ? infoSection.querySelector('.sheet-header-mobile') : null;
+    if (sheetHeader && !sheetHeader._gestureBound) {
+      sheetHeader._gestureBound = true;
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+      let activePointerId = null;
+
+      sheetHeader.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#sheetToggleBtn, #sheetCloseBtn')) return;
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        startY = e.clientY;
+        currentY = startY;
+        isDragging = true;
+        activePointerId = e.pointerId;
+        try { sheetHeader.setPointerCapture(e.pointerId); } catch (_) {}
+
+        infoSection.style.transition = 'none';
+      });
+
+      sheetHeader.addEventListener('pointermove', (e) => {
+        if (!isDragging || e.pointerId !== activePointerId) return;
+        currentY = e.clientY;
+        const deltaY = currentY - startY;
+
+        if (deltaY > 0) {
+          infoSection.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+        } else {
+          const isFull = infoSection.classList.contains('full-screen');
+          const factor = isFull ? 0.2 : 0.45;
+          infoSection.style.transform = `translate3d(0, ${deltaY * factor}px, 0)`;
+        }
+      });
+
+      const handleDragEnd = (e) => {
+        if (!isDragging || (e && e.pointerId !== activePointerId)) return;
+        isDragging = false;
+        try { if (activePointerId !== null) sheetHeader.releasePointerCapture(activePointerId); } catch (_) {}
+        activePointerId = null;
+
+        const deltaY = currentY - startY;
+        const isFull = infoSection.classList.contains('full-screen');
+
+        if (deltaY > 75) {
+          if (isFull && deltaY < 180) {
+            // Drop down from full-screen to half-sheet
+            infoSection.classList.remove('full-screen');
+            infoSection.style.transition = 'transform 0.26s cubic-bezier(0.16, 1, 0.3, 1)';
+            infoSection.style.transform = '';
+            const tBtn = document.getElementById('sheetToggleBtn');
+            if (tBtn) {
+              const icon = tBtn.querySelector('i');
+              if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+            }
+            setTimeout(() => { infoSection.style.transition = ''; }, 260);
+          } else {
+            if (infoSection._closeMobileSheet) {
+              infoSection._closeMobileSheet();
+            } else {
+              closeMobileSheet();
+            }
+          }
+        } else if (deltaY < -50 && !isFull) {
+          // Swipe up to expand to full-screen
+          infoSection.classList.add('full-screen');
+          infoSection.style.transition = 'transform 0.26s cubic-bezier(0.16, 1, 0.3, 1)';
+          infoSection.style.transform = '';
+          const tBtn = document.getElementById('sheetToggleBtn');
+          if (tBtn) {
+            const icon = tBtn.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-down-left-and-up-right-to-center';
+          }
+          setTimeout(() => { infoSection.style.transition = ''; }, 260);
+        } else {
+          // Snap back to 0
+          infoSection.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+          infoSection.style.transform = '';
+          setTimeout(() => { infoSection.style.transition = ''; }, 220);
+        }
+      };
+
+      sheetHeader.addEventListener('pointerup', handleDragEnd);
+      sheetHeader.addEventListener('pointercancel', handleDragEnd);
+    }
+
+    restartViewerInactivityTimer();
 
     const modalBtn = infoContent.querySelector('#modalToggleTaskBtn');
     if (modalBtn) {
@@ -1527,14 +1950,23 @@
 
     if (fabMainBtn) {
       fabMainBtn.addEventListener('click', () => {
-        // Klik FAB langsung membuka form tambah materi
-        openCreateCardModal('subject', false);
+        // Klik FAB langsung membuka form tambah tugas jika di view tugas, atau materi jika di view lain
+        if (state.activeView === 'tugas') {
+          openCreateCardModal('subject', true);
+        } else {
+          openCreateCardModal('subject', false);
+        }
       });
     }
 
     const btnAddAnn = document.getElementById('btnAddAnnouncement');
     if (btnAddAnn) {
       btnAddAnn.addEventListener('click', () => openCreateCardModal('announcement', false));
+    }
+
+    const btnAddMateri = document.getElementById('btnAddMateriQuick');
+    if (btnAddMateri) {
+      btnAddMateri.addEventListener('click', () => openCreateCardModal('subject', false));
     }
 
     const btnAddTugas = document.getElementById('btnAddTugasQuick');
@@ -1610,23 +2042,38 @@
     }
 
     function handleUploadFiles(files) {
-      const imageFiles = files.filter((f) => f.type && f.type.startsWith('image/'));
-      if (imageFiles.length === 0) {
-        showToast('Silakan pilih file gambar yang valid (JPG, PNG, WebP, GIF).', 'warning');
-        return;
+      const disallowedExts = ['exe', 'bat', 'cmd', 'sh', 'php', 'vbs', 'scr', 'msi', 'dll', 'com', 'hta', 'cpl', 'pif', 'reg', 'jar'];
+      const validFiles = [];
+
+      for (const file of files) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (disallowedExts.includes(ext)) {
+          showToast(`File .${ext} tidak diizinkan demi keamanan.`, 'warning');
+          continue;
+        }
+        validFiles.push(file);
       }
 
-      for (const file of imageFiles) {
-        const previewUrl = URL.createObjectURL(file);
+      if (validFiles.length === 0) return;
+
+      for (const file of validFiles) {
+        const isImg = file.type && file.type.startsWith('image/');
+        const isVid = file.type && file.type.startsWith('video/');
+        let previewUrl = '';
+        if (isImg || isVid) {
+          try { previewUrl = URL.createObjectURL(file); } catch (_) {}
+        }
         cardFormPhotos.push({
           type: 'draft',
           file,
           previewUrl,
-          name: file.name
+          name: file.name,
+          size: file.size
         });
       }
 
       renderImagePreviews();
+      showToast(`${validFiles.length} berkas ditambahkan`, 'info');
     }
 
     const kindSelect = document.getElementById('cfKind');
@@ -1677,7 +2124,7 @@
             for (let i = 0; i < draftPhotos.length; i++) {
               const draft = draftPhotos[i];
               if (submitBtn) {
-                submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i> Upload foto (${i + 1}/${draftPhotos.length})...`;
+                submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade"></i> Upload berkas (${i + 1}/${draftPhotos.length})...`;
               }
               const pubUrl = await window.ELearnizDB.uploadMedia(draft.file, 'cards');
               draft.url = pubUrl;
@@ -1835,6 +2282,14 @@
     }
   }
 
+  function formatFileSize(bytes) {
+    if (!bytes || bytes <= 0) return '';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
   function renderImagePreviews() {
     const container = document.getElementById('cfImagePreviewList');
     if (!container) return;
@@ -1845,19 +2300,49 @@
       return;
     }
 
+    const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
+    const classify = (window.ELearnizCards && window.ELearnizCards.classifyAttachment)
+      ? window.ELearnizCards.classifyAttachment
+      : ((u) => ({ type: 'file', ext: 'FILE', name: 'Berkas', icon: 'fa-solid fa-file', color: '#2563eb' }));
+
     container.innerHTML = cardFormPhotos
       .map((item, idx) => {
-        const src = item.type === 'draft' ? item.previewUrl : item.url;
         const isDraft = item.type === 'draft';
+        const urlOrName = isDraft ? item.name : item.url;
+        const meta = classify(urlOrName);
+
         const badgeHtml = isDraft
           ? `<span class="preview-badge-draft"><i class="fa-solid fa-clock"></i> Draf</span>`
           : `<span class="preview-badge-r2"><i class="fa-solid fa-cloud"></i> R2</span>`;
 
+        let mediaHtml = '';
+        if (meta.type === 'image') {
+          const src = isDraft ? item.previewUrl : item.url;
+          mediaHtml = `<img src="${esc(src)}" alt="Lampiran ${idx + 1}" loading="lazy" decoding="async" />`;
+        } else if (meta.type === 'video') {
+          const src = isDraft ? item.previewUrl : item.url;
+          mediaHtml = `
+            <video src="${esc(src)}" preload="metadata" muted class="preview-video-thumb"></video>
+            <div class="preview-type-pill"><i class="fa-solid fa-film"></i> Video</div>
+          `;
+        } else {
+          const sizeText = item.size ? formatFileSize(item.size) : '';
+          mediaHtml = `
+            <div class="preview-file-body">
+              <span class="preview-file-icon" style="color:${meta.color};">
+                <i class="${meta.icon}"></i>
+              </span>
+              <span class="preview-file-name" title="${esc(meta.name)}">${esc(meta.name)}</span>
+              <span class="preview-file-ext">${esc(meta.ext.toUpperCase())}${sizeText ? ' · ' + sizeText : ''}</span>
+            </div>
+          `;
+        }
+
         return `
-          <div class="preview-card" data-index="${idx}">
-            <img src="${src}" alt="Foto ${idx + 1}" loading="lazy" decoding="async" />
+          <div class="preview-card ${meta.type !== 'image' && meta.type !== 'video' ? 'is-file-preview' : ''}" data-index="${idx}">
+            ${mediaHtml}
             ${badgeHtml}
-            <button type="button" class="btn-remove-img" data-remove-index="${idx}" title="Hapus foto ini">
+            <button type="button" class="btn-remove-img" data-remove-index="${idx}" title="Hapus berkas ini">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>

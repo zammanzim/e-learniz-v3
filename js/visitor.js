@@ -95,6 +95,7 @@
     const route = parts[0] ? parts[0].toLowerCase() : 'home';
 
     if (route === 'tugas') return 'Daftar Tugas';
+    if (route === 'materi' || route === 'material' || route === 'materials') return 'Materi Pelajaran';
     if (route === 'mapel') {
       if (!parts[1]) return 'Daftar Mata Pelajaran';
       const nameEl = document.getElementById('subjectName');

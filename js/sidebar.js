@@ -5,6 +5,7 @@
   function initNavigation(options) {
     const {
       onNavigateHome,
+      onNavigateMateri,
       onNavigateTugas,
       onNavigateSubject
     } = options || {};
@@ -44,13 +45,14 @@
       });
     }
 
-    // Main Sidebar Nav (Beranda, Daftar Tugas)
+    // Main Sidebar Nav (Beranda, Materi, Daftar Tugas)
     const mainNavItems = document.querySelectorAll('#sidebarMainNav li[data-nav]');
     mainNavItems.forEach((li) => {
       li.addEventListener('click', () => {
         const target = li.getAttribute('data-nav');
         toggleSidebar(false);
         if (target === 'home' && onNavigateHome) onNavigateHome();
+        if (target === 'materi' && onNavigateMateri) onNavigateMateri();
         if (target === 'tugas' && onNavigateTugas) onNavigateTugas();
       });
     });
@@ -63,6 +65,7 @@
         const target = item.getAttribute('data-bn-nav');
         toggleSidebar(false);
         if (target === 'home' && onNavigateHome) onNavigateHome();
+        if (target === 'materi' && onNavigateMateri) onNavigateMateri();
         if (target === 'tugas' && onNavigateTugas) onNavigateTugas();
         if (target === 'subject' && onNavigateSubject) onNavigateSubject(null);
       });

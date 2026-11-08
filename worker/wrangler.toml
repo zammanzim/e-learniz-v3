@@ -32,4 +32,4 @@ PUBLIC_BASE_URL = "https://media-v3.e-learniz.my.id"
 SUPABASE_URL = "https://vttmwtlqzbbiaromohrp.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0dG13dGxxemJiaWFyb21vaHJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyNjg4NTMsImV4cCI6MjA4MDg0NDg1M30.16SwOEqD5ZNAgk1oWhLrL41Eqw4kkeAKTyHxkSqmpiY"
 # Domain frontend yang boleh manggil (pisahkan koma bila banyak)
-ALLOWED_ORIGIN = "https://e-learniz.my.id"
+ALLOWED_ORIGIN = "https://e-learniz.web.id, https://e-learniz.my.id, https://e-learniz-v3.nizzcuy.workers.dev"

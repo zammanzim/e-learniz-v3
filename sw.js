@@ -4,7 +4,7 @@
 // Aman untuk Supabase & Presign Worker (API tidak di-cache).
 // =========================================================================
 
-const VERSI = "elearniz-v12";
+const VERSI = "elearniz-v16";
 const STATIS = VERSI + "-statis";
 const RUNTIME = VERSI + "-runtime";
 
@@ -13,6 +13,7 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./login.html",
+  "./materi.html",
   "./subject.html",
   "./subjects.html",
   "./tugas.html",

@@ -153,9 +153,10 @@
     const route = (parts[0] || 'home').toLowerCase();
     let view = 'home';
     if (['tugas', 'task', 'tasks'].includes(route)) view = 'tugas';
+    else if (['materi', 'material', 'materials'].includes(route)) view = 'materi';
     else if (['mapel', 'subject', 'subjects'].includes(route)) view = 'subject';
 
-    const map = { home: 'viewHome', tugas: 'viewTugas', subject: 'viewSubject' };
+    const map = { home: 'viewHome', materi: 'viewMateri', tugas: 'viewTugas', subject: 'viewSubject' };
     Object.keys(map).forEach((k) => {
       const el = document.getElementById(map[k]);
       if (el) el.classList.toggle('active', k === view);
@@ -191,6 +192,9 @@
 
     setHtml('dailyInfoCard', dailyCard());
     setHtml('announcementList', courseList(2));
+    setHtml('userMateriProfile', userTaskProfile());
+    setHtml('materiMapelFilterChips', chips());
+    setHtml('materiList', courseList(3));
     setHtml('userTaskProfile', userTaskProfile());
     setHtml('mapelFilterChips', chips());
     setHtml('taskList', courseList(3));

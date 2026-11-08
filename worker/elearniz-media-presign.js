@@ -32,13 +32,19 @@
 //   4. Isi V3_R2_PRESIGN_URL + V3_R2_PUBLIC_BASE di ../js/config.js
 // =========================================================================
 
-// Folder yang boleh ditulis/dihapus. Kartu v3 cuma naro gambar di sini:
+// Folder yang boleh ditulis/dihapus. Kartu v3 cuma naro lampiran di sini:
 //   cards/<class_id>/<timestamp>_<random>_<namafile>
 const FOLDER_BOLEH = new Set(["cards"]);
 
-// Cuma gambar — tolak semua yang bisa dieksekusi.
-const CONTENT_BOLEH = new Set([
-  "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+// Ekstensi & MIME berbahaya yang ditolak demi keamanan server dan pengguna.
+// Selain ekstensi ini, semua tipe file diperbolehkan (Foto, Video, Audio, Dokumen PDF/Word/Excel/PPT, ZIP, dll).
+const EXT_DILARANG = new Set([
+  "exe", "bat", "cmd", "sh", "php", "vbs", "js", "mjs", "scr", "msi", "dll", "com", "hta", "cpl", "pif", "reg", "jar"
+]);
+
+const MIME_DILARANG = new Set([
+  "application/x-msdownload", "application/x-executable", "application/x-sh", "application/x-bat",
+  "text/javascript", "application/javascript", "application/x-httpd-php"
 ]);
 
 const UMUR_PRESIGN_DETIK = 90; // presigned URL cuma berlaku 90 detik
@@ -259,9 +265,11 @@ export default {
 
     try {
       if (op === "put") {
-        const contentType = String(body.contentType || "application/octet-stream");
-        if (!CONTENT_BOLEH.has(contentType)) {
-          return jsonResponse({ error: "Tipe file tidak diizinkan (cuma gambar)." }, 400, env, req);
+        const contentType = String(body.contentType || "application/octet-stream").toLowerCase();
+        const ext = path.split(".").pop().toLowerCase();
+
+        if (EXT_DILARANG.has(ext) || MIME_DILARANG.has(contentType)) {
+          return jsonResponse({ error: `File .${ext} tidak diizinkan demi keamanan sistem.` }, 400, env, req);
         }
         const signed = await presignUrl({
           method: "PUT",

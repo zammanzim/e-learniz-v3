@@ -16,14 +16,21 @@ Portal belajar kelas statis tanpa build step: **HTML + CSS + vanilla JS + Supaba
    - **Feed Pengumuman Kelas**: kartu dengan PIN, lampiran gambar R2, dan lightbox.
    - **Popup Pengunjung** (parity dengan v2): tab kelas, badge jumlah, avatar + role, status online realtime (Supabase Presence), halaman terakhir, waktu kunjungan WIB, detail perangkat yang bisa dibuka, update realtime, serta auto reset 15:00 dan tombol bersihkan khusus staff. Shortcut `Ctrl+Q`.
 
-2. **Daftar Tugas (`#/tugas`)**
+2. **Materi Pelajaran (`#/materi`)**
+   - Agregasi **semua materi pelajaran dari semua mapel**.
+   - Format kartu identik dengan daftar tugas, namun **tanpa checklist status / tombol "Tandai Selesai"**.
+   - Profil materi: total materi, jumlah mapel aktif, dan pesan motivasi belajar.
+   - **Chip filter per mata pelajaran** dengan badge jumlah materi & pencarian materi.
+   - Tombol tambah materi cepat untuk staff/guru (`+ Tambah Materi`).
+
+3. **Daftar Tugas (`#/tugas`)**
    - Kartu progres siswa: total, selesai, persentase, dan pesan motivasi.
    - **3 filter status**: `Belum`, `Selesai`, `Semua` (slider 3 kolom).
    - **Chip mapel dengan jumlah tugas** dan filter pencarian judul/bab/catatan/mapel.
    - **Prioritas pintar**: tugas dari mapel yang ada di jadwal **hari ini/besok** diberi badge `⚡ Jadwal Hari Ini/Besok` dan diurutkan setelah kartu PIN.
    - Centang selesai tersimpan di `v3.task_progress` + cache lokal.
 
-3. **Mata Pelajaran (`#/mapel` & `#/mapel/<slug>`)**
+4. **Mata Pelajaran (`#/mapel` & `#/mapel/<slug>`)**
    - **Katalog mapel**: grid semua mapel, pencarian nama mapel/guru, jumlah konten, dan jumlah tugas aktif.
    - **Detail mapel**: kartu info guru + tombol Chat WhatsApp, statistik konten/tugas, progress bar, filter `Semua/Tugas/Materi/Dipin`, dan pencarian.
    - Edit info mapel (nama, guru, kontak, icon, warna) khusus staff.

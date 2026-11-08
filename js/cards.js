@@ -548,23 +548,108 @@
   /* ------------------------------------------------------------------------
      2. COURSE CARD (.course-card) — Pengumuman, Tugas, & Mapel
      ------------------------------------------------------------------------ */
-  function buildPhotoGridHtml(images) {
+  function classifyAttachment(url) {
+    if (!url || typeof url !== 'string') return { type: 'other', ext: '', name: 'Berkas', icon: 'fa-solid fa-file-lines', color: '#64748b' };
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const parts = cleanUrl.split('/');
+    const rawFileName = decodeURIComponent(parts[parts.length - 1] || '');
+    const displayName = rawFileName.replace(/^\d+_[a-z0-9]+_/, '') || rawFileName || 'Berkas';
+    const ext = (cleanUrl.split('.').pop() || '').toLowerCase();
+
+    const imgExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'svg', 'bmp'];
+    const videoExts = ['mp4', 'webm', 'mkv', 'mov', 'avi', 'ogg'];
+    const audioExts = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'];
+    const docPdf = ['pdf'];
+    const docWord = ['doc', 'docx', 'odt'];
+    const docExcel = ['xls', 'xlsx', 'csv', 'ods'];
+    const docPpt = ['ppt', 'pptx', 'odp'];
+    const docZip = ['zip', 'rar', '7z', 'tar', 'gz'];
+
+    if (imgExts.includes(ext)) {
+      return { type: 'image', ext, name: displayName, icon: 'fa-solid fa-image', color: '#2563eb' };
+    }
+    if (videoExts.includes(ext)) {
+      return { type: 'video', ext, name: displayName, icon: 'fa-solid fa-film', color: '#8b5cf6' };
+    }
+    if (audioExts.includes(ext)) {
+      return { type: 'audio', ext, name: displayName, icon: 'fa-solid fa-volume-high', color: '#0ea5e9' };
+    }
+    if (docPdf.includes(ext)) {
+      return { type: 'pdf', ext, name: displayName, icon: 'fa-solid fa-file-pdf', color: '#ef4444' };
+    }
+    if (docWord.includes(ext)) {
+      return { type: 'word', ext, name: displayName, icon: 'fa-solid fa-file-word', color: '#2563eb' };
+    }
+    if (docExcel.includes(ext)) {
+      return { type: 'excel', ext, name: displayName, icon: 'fa-solid fa-file-excel', color: '#10b981' };
+    }
+    if (docPpt.includes(ext)) {
+      return { type: 'ppt', ext, name: displayName, icon: 'fa-solid fa-file-powerpoint', color: '#f59e0b' };
+    }
+    if (docZip.includes(ext)) {
+      return { type: 'zip', ext, name: displayName, icon: 'fa-solid fa-file-zipper', color: '#64748b' };
+    }
+    return { type: 'file', ext: ext || 'doc', name: displayName, icon: 'fa-solid fa-file-lines', color: '#64748b' };
+  }
+
+  function buildAttachmentsHtml(images) {
     if (!Array.isArray(images) || images.length === 0) return '';
     const clean = images.filter(Boolean);
     if (clean.length === 0) return '';
-    const countClass = `count-${Math.min(clean.length, 4)}`;
-    const displayList = clean.slice(0, 4);
-    const extraCount = clean.length - 4;
-    return `
-      <div class="photo-grid ${countClass}">
-        ${displayList.map((url, idx) => `
-          <div class="photo-item photo-wrapper" data-photo-index="${idx}" title="Klik untuk lihat foto">
-            <img src="${escapeHtml(url)}" alt="Lampiran Materi" loading="lazy" decoding="async" />
-            ${(idx === 3 && extraCount > 0) ? `<div class="more-overlay">+${extraCount}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-    `;
+
+    const items = clean.map((url, idx) => ({
+      url,
+      idx,
+      meta: classifyAttachment(url)
+    }));
+
+    const visual = items.filter((it) => it.meta.type === 'image' || it.meta.type === 'video');
+    const docs = items.filter((it) => it.meta.type !== 'image' && it.meta.type !== 'video');
+
+    let html = '';
+
+    if (visual.length > 0) {
+      const countClass = `count-${Math.min(visual.length, 4)}`;
+      const displayList = visual.slice(0, 4);
+      const extraCount = visual.length - 4;
+
+      html += `
+        <div class="photo-grid ${countClass}">
+          ${displayList.map((item, i) => `
+            <div class="photo-item photo-wrapper ${item.meta.type === 'video' ? 'is-video-thumb' : ''}" data-photo-index="${item.idx}" title="Klik untuk melihat">
+              ${item.meta.type === 'video'
+                ? `<video src="${escapeHtml(item.url)}" preload="metadata" muted></video><div class="video-play-badge"><i class="fa-solid fa-play"></i></div>`
+                : `<img src="${escapeHtml(item.url)}" alt="Lampiran Materi" loading="lazy" decoding="async" />`
+              }
+              ${(i === 3 && extraCount > 0) ? `<div class="more-overlay">+${extraCount}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    if (docs.length > 0) {
+      html += `
+        <div class="card-attachment-list">
+          ${docs.map((item) => `
+            <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="card-attachment-chip" download="${escapeHtml(item.meta.name)}" title="Buka / Unduh: ${escapeHtml(item.meta.name)}" onclick="event.stopPropagation();">
+              <span class="att-chip-icon" style="color:${item.meta.color}">
+                <i class="${item.meta.icon}"></i>
+              </span>
+              <span class="att-chip-info">
+                <span class="att-chip-name">${escapeHtml(item.meta.name)}</span>
+                <span class="att-chip-ext">${escapeHtml(item.meta.ext.toUpperCase())}</span>
+              </span>
+              <span class="att-chip-action" title="Unduh">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i>
+              </span>
+            </a>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    return html;
   }
 
   let cardMenuListenerBound = false;
@@ -601,6 +686,7 @@
       priorityMap = {},
       showSubjectOrigin = false,
       isAdmin = false,
+      hideTaskChecklist = false,
       onToggleTask,
       onOpenDetail,
       onEditCard,
@@ -620,12 +706,15 @@
     }
 
     container.innerHTML = cards.map((card, idx) => {
-      const isDone = completedTaskSet.has(String(card.id));
-      const statusClass = computeTaskStatusClass(card, isDone);
+      const isTaskCard = card.has_task && !hideTaskChecklist;
+      const isDone = isTaskCard && completedTaskSet.has(String(card.id));
+      const statusClass = isTaskCard ? computeTaskStatusClass(card, isDone) : '';
       const isPinnedClass = card.pinned ? 'is-pinned' : '';
       const subj = card.subject_id ? subjectsMap[String(card.subject_id)] : null;
-      const dueLabel = formatDueLabel(card.due_date);
-      const smallText = [card.small, dueLabel].filter(Boolean).join(' · ');
+      const dueLabel = isTaskCard ? formatDueLabel(card.due_date) : '';
+      const smallText = isTaskCard
+        ? [card.small, dueLabel].filter(Boolean).join(' · ')
+        : (card.small || '');
       const accent = (window.ELearnizUI && window.ELearnizUI.safeColor)
         ? window.ELearnizUI.safeColor(subj && subj.color)
         : ((subj && subj.color) || '#2563eb');
@@ -634,7 +723,7 @@
         : '';
       const priority = card.subject_id ? priorityMap[String(card.subject_id)] : null;
       const priorityLabel = priority === 'today' ? 'Jadwal Hari Ini' : (priority === 'tomorrow' ? 'Jadwal Besok' : '');
-      const hasTaskClass = card.has_task ? 'has-task' : 'no-task';
+      const hasTaskClass = isTaskCard ? 'has-task' : 'no-task';
 
       return `
         <article class="course-card ${statusClass} ${isPinnedClass} ${hasTaskClass}" data-card-id="${card.id}" ${borderAccentStyle}>
@@ -674,11 +763,11 @@
           ${card.title && card.big_title ? `<h4>${escapeHtml(card.title)}</h4>` : ''}
           ${card.content ? `<p>${escapeHtml(card.content)}</p>` : ''}
 
-          ${buildPhotoGridHtml(card.images)}
+          ${buildAttachmentsHtml(card.images)}
 
           ${smallText ? `<small><i class="fa-regular fa-clock"></i> ${escapeHtml(smallText)}</small>` : ''}
 
-          ${card.has_task ? `
+          ${isTaskCard ? `
             <button type="button" class="task-btn ${isDone ? 'completed' : ''}" data-toggle-task="${card.id}" title="${isDone ? 'Klik untuk tandai belum selesai' : 'Klik untuk tandai selesai'}">
               <i class="${isDone ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle-check'}"></i>
               <span>${isDone ? 'Selesai' : 'Tandai Selesai'}</span>
@@ -794,11 +883,55 @@
     `;
   }
 
+  /* ------------------------------------------------------------------------
+     4. USER MATERI PROFILE CARD (#userMateriProfile on Halaman Materi)
+     ------------------------------------------------------------------------ */
+  function renderUserMateriProfile(container, currentUser, totalMateri, subjectsCount) {
+    if (!container) return;
+    const name = currentUser
+      ? (currentUser.display_name || currentUser.username || 'Siswa')
+      : 'Tamu Kelas';
+    const initial = name.charAt(0).toUpperCase();
+
+    let caption = 'Jelajahi dan pelajari materi kelas dari semua mata pelajaran kapan saja! 📖';
+    if (totalMateri === 0) {
+      caption = 'Belum ada materi pembelajaran yang diunggah saat ini. Tetap semangat! 📚';
+    } else if (totalMateri >= 10) {
+      caption = 'Banyak materi tersedia! Yuk perdalam pemahamanmu dengan membaca modul & catatan guru. 🌟';
+    }
+
+    container.innerHTML = `
+      <div class="user-task-profile-card">
+        <div class="utp-top-row">
+          <div class="utp-avatar">${escapeHtml(initial)}</div>
+          <div class="utp-info">
+            <div class="utp-name">${escapeHtml(name)}</div>
+            <div class="utp-status-row">
+              <span>Koleksi Materi:</span>
+              <strong>${totalMateri} Materi</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="utp-progress-track sic-progress-track">
+          <div class="utp-progress-fill sic-progress-fill" style="width: 100%;"></div>
+          <div class="utp-progress-text">
+            ${totalMateri} materi aktif dari ${subjectsCount} mata pelajaran
+          </div>
+        </div>
+
+        <small class="utp-caption">${caption}</small>
+      </div>
+    `;
+  }
+
   window.ELearnizCards = {
     renderDailyCard,
     renderCourseCardList,
     renderUserTaskProfile,
+    renderUserMateriProfile,
     formatDueLabel,
+    classifyAttachment,
     escapeHtml
   };
 })();
