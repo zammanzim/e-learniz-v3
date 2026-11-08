@@ -100,11 +100,16 @@ create table if not exists v3.task_progress (
 
 -- Pengunjung (1 baris per user, upsert by user_id)
 create table if not exists v3.visitors (
-    user_id    bigint primary key references v3.users(id) on delete cascade,
-    class_id   bigint references v3.classes(id) on delete cascade,
-    last_page  text default '',
-    is_visible boolean not null default true,
-    visited_at timestamptz not null default now()
+    user_id           bigint primary key references v3.users(id) on delete cascade,
+    class_id          bigint references v3.classes(id) on delete cascade,
+    last_page         text default '',
+    is_visible        boolean not null default true,
+    visited_at        timestamptz not null default now(),
+    user_agent        text not null default '',
+    device_type       text not null default '',
+    platform          text not null default '',
+    screen_resolution text not null default '',
+    browser_language  text not null default ''
 );
 
 -- Jadwal (daily card): info per hari
@@ -169,6 +174,14 @@ alter table v3.cards
 
 alter table v3.schedule_periods
     add column if not exists subject_id bigint references v3.subjects(id) on delete set null;
+
+-- Detail perangkat pengunjung (dipakai popup Pengunjung).
+alter table v3.visitors
+    add column if not exists user_agent        text not null default '',
+    add column if not exists device_type       text not null default '',
+    add column if not exists platform          text not null default '',
+    add column if not exists screen_resolution text not null default '',
+    add column if not exists browser_language  text not null default '';
 
 -- Backfill aman: cocokkan nama yang sama persis atau alias umum.
 -- Tidak memakai fuzzy matching agar "PP" tidak salah cocok ke "PPK".
@@ -310,6 +323,20 @@ grant insert, update, delete on v3.classes, v3.users, v3.subjects, v3.cards,
     v3.schedule_days, v3.schedule_periods to authenticated;
 grant usage, select on all sequences in schema v3 to anon, authenticated;
 alter default privileges in schema v3 grant usage, select on sequences to anon, authenticated;
+
+-- Realtime untuk daftar pengunjung (idempotent).
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'v3'
+          and tablename = 'visitors'
+    ) then
+        alter publication supabase_realtime add table v3.visitors;
+    end if;
+end $$;
 
 -- refresh cache PostgREST
 notify pgrst, 'reload schema';

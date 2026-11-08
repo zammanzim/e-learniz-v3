@@ -43,6 +43,29 @@
     return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
+  // Info perangkat untuk daftar pengunjung (parity dengan e-learniz v2).
+  function getDeviceInfo() {
+    const ua = (navigator && navigator.userAgent) || '';
+    let deviceType = 'desktop';
+    if (/tablet|ipad|playbook|silk|android(?!.*mobile)/i.test(ua)) deviceType = 'tablet';
+    else if (/mobile|iphone|ipod|android|blackberry|opera mini|iemobile|wpdesktop/i.test(ua)) deviceType = 'mobile';
+
+    let resolution = '';
+    try {
+      if (typeof screen !== 'undefined' && screen.width && screen.height) {
+        resolution = `${screen.width}x${screen.height}`;
+      }
+    } catch (_) {}
+
+    return {
+      user_agent: ua.slice(0, 500),
+      device_type: deviceType,
+      platform: (navigator && navigator.platform) || '',
+      screen_resolution: resolution,
+      browser_language: (navigator && navigator.language) || ''
+    };
+  }
+
   /* ------------------------------------------------------------------------
      MEDIA CLOUDFLARE R2
      ------------------------------------------------------------------------ */
@@ -526,57 +549,85 @@
     const name = info.displayName || 'Tamu';
     const role = info.role || 'guest';
     const nowIso = new Date().toISOString();
+    const lastPage = info.lastPage || '';
+    const device = info.device || getDeviceInfo();
 
     // Simpan juga di localStorage: fallback kalau DB/RLS sedang bermasalah,
     // dan satu-satunya sumber untuk tamu (tamu tidak punya user_id).
     const local = readLocalVisitors(classId);
-    const sameUser = info.userId
-      ? local.some((v) => String(v.user_id) === String(info.userId))
-      : local.some((v) => String(v.display_name || '').trim().toLowerCase() === String(name).trim().toLowerCase());
-    if (!sameUser) {
-      local.unshift({
-        user_id: info.userId || null,
-        display_name: name,
-        role,
-        visited_at: nowIso,
-        source: 'local'
-      });
-      writeLocalVisitors(classId, local);
+    const localEntry = {
+      user_id: info.userId || null,
+      display_name: name,
+      role,
+      last_page: lastPage,
+      visited_at: nowIso,
+      user_agent: device.user_agent,
+      device_type: device.device_type,
+      platform: device.platform,
+      screen_resolution: device.screen_resolution,
+      browser_language: device.browser_language,
+      source: 'local'
+    };
+    const matchIdx = local.findIndex((v) => (
+      info.userId
+        ? String(v.user_id) === String(info.userId)
+        : String(v.display_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()
+    ));
+    if (matchIdx >= 0) {
+      local[matchIdx] = { ...local[matchIdx], ...localEntry };
+    } else {
+      local.unshift(localEntry);
+    }
+    writeLocalVisitors(classId, local);
+
+    if (!info.userId) return;
+
+    // Debounce: jangan spam DB kalau halaman sama dibuka berulang < 2 menit.
+    const debounceKey = `elearniz_v3_visit_log_${info.userId}`;
+    let last = null;
+    try {
+      last = JSON.parse(localStorage.getItem(debounceKey) || 'null');
+    } catch (_) {}
+    const now = Date.now();
+    if (last && last.page === lastPage && (now - Number(last.ts || 0)) < 2 * 60 * 1000) {
+      return;
     }
 
-    if (info.userId) {
-      const db = api();
-      if (!db) throw new Error('Koneksi Supabase tidak tersedia.');
-      const { error } = await db.from('visitors').upsert({
-        user_id: Number(info.userId),
-        class_id: Number(classId),
-        last_page: info.lastPage || '',
-        is_visible: true,
-        visited_at: nowIso
-      }, { onConflict: 'user_id' });
-      if (error) throw error;
-    }
+    const db = api();
+    if (!db) throw new Error('Koneksi Supabase tidak tersedia.');
+    const { error } = await db.from('visitors').upsert({
+      user_id: Number(info.userId),
+      class_id: Number(classId),
+      last_page: lastPage,
+      is_visible: true,
+      visited_at: nowIso,
+      user_agent: device.user_agent,
+      device_type: device.device_type,
+      platform: device.platform,
+      screen_resolution: device.screen_resolution,
+      browser_language: device.browser_language
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+
+    try {
+      localStorage.setItem(debounceKey, JSON.stringify({ page: lastPage, ts: now }));
+    } catch (_) {}
   }
 
-  async function listTodayVisitors(classId) {
+  async function listVisitors(classId) {
     const local = readLocalVisitors(classId);
     let dbVisitors = [];
 
     try {
       const db = api();
       if (db) {
-        const T = window.ELearnizTime;
-        const start = T
-          ? T.startOfDayIso(new Date())
-          : new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-
         const { data, error } = await db
           .from('visitors')
-          .select('user_id,last_page,visited_at,is_visible')
+          .select('user_id,class_id,last_page,visited_at,is_visible,user_agent,device_type,platform,screen_resolution,browser_language')
           .eq('class_id', Number(classId))
           .eq('is_visible', true)
-          .gte('visited_at', start)
-          .order('visited_at', { ascending: false });
+          .order('visited_at', { ascending: false })
+          .limit(60);
         if (error) throw error;
 
         if (Array.isArray(data) && data.length > 0) {
@@ -590,16 +641,26 @@
             const u = byId[String(v.user_id)] || {};
             return {
               user_id: v.user_id,
+              class_id: v.class_id,
               display_name: u.full_name || u.nickname || `Pengguna #${v.user_id}`,
+              nickname: u.nickname || '',
+              full_name: u.full_name || '',
               role: u.role || 'student',
+              avatar_url: u.avatar_url || '',
+              last_page: v.last_page || '',
               visited_at: v.visited_at,
+              user_agent: v.user_agent || '',
+              device_type: v.device_type || '',
+              platform: v.platform || '',
+              screen_resolution: v.screen_resolution || '',
+              browser_language: v.browser_language || '',
               source: 'db'
             };
           });
         }
       }
     } catch (e) {
-      console.warn('listTodayVisitors fallback:', e);
+      console.warn('listVisitors fallback:', e);
     }
 
     const merged = [];
@@ -613,10 +674,59 @@
       merged.push(v);
     };
 
+    // DB dulu (data lengkap), lalu fallback lokal/tamu.
     dbVisitors.forEach(push);
     local.forEach(push);
     merged.sort((a, b) => new Date(b.visited_at || 0) - new Date(a.visited_at || 0));
     return merged;
+  }
+
+  // Alias lama: popup sekarang menampilkan "pengunjung terakhir" seperti v2,
+  // bukan hanya baris yang visited_at-nya >= awal hari.
+  async function listTodayVisitors(classId) {
+    return listVisitors(classId);
+  }
+
+  async function countVisitors(classId) {
+    try {
+      const db = api();
+      if (!db) return 0;
+      const { count, error } = await db
+        .from('visitors')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('class_id', Number(classId))
+        .eq('is_visible', true);
+      if (error) throw error;
+      return Number(count) || 0;
+    } catch (e) {
+      console.warn('countVisitors fallback:', e);
+      return 0;
+    }
+  }
+
+  // Staff-only di UI (RLS v3 masih mengizinkan update visitors untuk anon,
+  // karena itu dipakai untuk log kunjungan).
+  async function clearVisitors(classId) {
+    const db = api();
+    if (!db) throw new Error('Koneksi Supabase tidak tersedia.');
+    const { error } = await db
+      .from('visitors')
+      .update({ is_visible: false })
+      .gte('user_id', 0);
+    if (error) throw error;
+    try {
+      if (classId) {
+        writeLocalVisitors(classId, []);
+      } else {
+        // Auto reset global: bersihkan cache tamu di semua kelas.
+        const prefix = 'elearniz_v3_visitors_';
+        for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+          const key = localStorage.key(i);
+          if (key && key.indexOf(prefix) === 0) localStorage.removeItem(key);
+        }
+      }
+    } catch (_) {}
+    return true;
   }
 
   async function listUsers(classId) {
@@ -661,6 +771,10 @@
     getCompletedCardIds,
     toggleTaskCompleted,
     logVisit,
-    listTodayVisitors
+    listVisitors,
+    listTodayVisitors,
+    countVisitors,
+    clearVisitors,
+    getDeviceInfo
   };
 })();

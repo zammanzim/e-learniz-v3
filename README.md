@@ -14,6 +14,7 @@ Portal belajar kelas statis tanpa build step: **HTML + CSS + vanilla JS + Supaba
      - Piket kelas sebagai pill nama.
      - Editor jadwal khusus staff (info harian + periode pelajaran) yang menyimpan `subject_id` asli.
    - **Feed Pengumuman Kelas**: kartu dengan PIN, lampiran gambar R2, dan lightbox.
+   - **Popup Pengunjung** (parity dengan v2): tab kelas, badge jumlah, avatar + role, status online realtime (Supabase Presence), halaman terakhir, waktu kunjungan WIB, detail perangkat yang bisa dibuka, update realtime, serta auto reset 15:00 dan tombol bersihkan khusus staff. Shortcut `Ctrl+Q`.
 
 2. **Daftar Tugas (`#/tugas`)**
    - Kartu progres siswa: total, selesai, persentase, dan pesan motivasi.
