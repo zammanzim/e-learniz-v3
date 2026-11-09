@@ -65,7 +65,6 @@
         const target = item.getAttribute('data-bn-nav');
         toggleSidebar(false);
         if (target === 'home' && onNavigateHome) onNavigateHome();
-        if (target === 'materi' && onNavigateMateri) onNavigateMateri();
         if (target === 'tugas' && onNavigateTugas) onNavigateTugas();
         if (target === 'subject' && onNavigateSubject) onNavigateSubject(null);
       });

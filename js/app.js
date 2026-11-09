@@ -48,6 +48,13 @@
     }
   }
 
+  function classifyAttachment(url) {
+    if (window.ELearnizCards && window.ELearnizCards.classifyAttachment) {
+      return window.ELearnizCards.classifyAttachment(url);
+    }
+    return { type: 'file', ext: 'FILE', name: 'Berkas', icon: 'fa-solid fa-file', color: '#2563eb' };
+  }
+
   /* ------------------------------------------------------------------------
      INITIALIZATION & DATA LOADING
      ------------------------------------------------------------------------ */
@@ -1256,9 +1263,7 @@
 
     // Render all slides once with async image decoding and GPU acceleration
     const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
-    const classify = (window.ELearnizCards && window.ELearnizCards.classifyAttachment)
-      ? window.ELearnizCards.classifyAttachment
-      : ((u) => ({ type: 'image', name: 'Berkas', ext: '', icon: 'fa-solid fa-file', color: '#2563eb' }));
+    const classify = classifyAttachment;
 
     track.innerHTML = currentViewerPhotos.map((url, i) => {
       const meta = classify(url);
@@ -1540,6 +1545,7 @@
       }
     }
     const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
+    const classify = classifyAttachment;
     // Warna & icon dari DB wajib divalidasi sebelum masuk atribut style/class.
     const safeColorFn = (window.ELearnizUI && window.ELearnizUI.safeColor)
       ? window.ELearnizUI.safeColor
@@ -2301,9 +2307,7 @@
     }
 
     const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
-    const classify = (window.ELearnizCards && window.ELearnizCards.classifyAttachment)
-      ? window.ELearnizCards.classifyAttachment
-      : ((u) => ({ type: 'file', ext: 'FILE', name: 'Berkas', icon: 'fa-solid fa-file', color: '#2563eb' }));
+    const classify = classifyAttachment;
 
     container.innerHTML = cardFormPhotos
       .map((item, idx) => {

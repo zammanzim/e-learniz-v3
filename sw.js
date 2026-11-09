@@ -4,7 +4,7 @@
 // Aman untuk Supabase & Presign Worker (API tidak di-cache).
 // =========================================================================
 
-const VERSI = "elearniz-v16";
+const VERSI = "elearniz-v17";
 const STATIS = VERSI + "-statis";
 const RUNTIME = VERSI + "-runtime";
 
