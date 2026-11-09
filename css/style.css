@@ -1095,9 +1095,21 @@ header#mainHeader {
   .course-card:has(.task-btn) {
     padding-bottom: 2.65rem;
   }
+  .card-top-actions {
+    top: 0.75rem;
+    right: 0.75rem;
+    gap: 0.35rem;
+  }
+  .task-btn {
+    bottom: 0.55rem;
+    right: 0.95rem;
+    left: auto;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.76rem;
+  }
   .course-card h3 {
     font-size: 1.02rem;
-    padding-right: 2rem;
+    padding-right: 4.8rem;
     margin-bottom: 0.25rem;
   }
   .course-card h4 {
@@ -2267,7 +2279,7 @@ header#mainHeader {
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 0.3rem;
-  padding-right: 2.2rem;
+  padding-right: 5.4rem;
   line-height: 1.3;
 }
 
@@ -2296,7 +2308,7 @@ header#mainHeader {
   background: var(--bg-muted);
   padding: 0.28rem 0.65rem;
   border-radius: 8px;
-  max-width: calc(100% - 3.5rem);
+  max-width: 100%;
 }
 
 /* Subject Tag inside Tugas Card */
@@ -2363,12 +2375,20 @@ header#mainHeader {
   box-shadow: 0 4px 18px rgba(251, 191, 36, 0.16), var(--shadow-sm);
 }
 
-/* Card 3-Dots Admin Menu (Top-Right — Req 7) */
-.card-menu-container {
+/* Card Top Actions (Top-Right — Auto Number & Admin Menu) */
+.card-top-actions {
   position: absolute;
   top: 0.85rem;
   right: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   z-index: 10;
+}
+
+.card-menu-container {
+  position: relative;
+  display: inline-flex;
 }
 
 .card-dots-btn {
@@ -2516,11 +2536,12 @@ header#mainHeader {
   transform: scale(1.04);
 }
 
-/* Task Button Bottom-Left (.task-btn) — Prominent & High Contrast */
+/* Task Button Bottom-Right (.task-btn) — Prominent & High Contrast */
 .task-btn {
   position: absolute;
   bottom: 0.6rem;
-  left: 1.25rem;
+  right: 1.25rem;
+  left: auto;
   padding: 0.46rem 1rem;
   font-size: 0.82rem;
   font-weight: 800;
@@ -2583,17 +2604,23 @@ header#mainHeader {
   border-color: #10b981;
 }
 
-/* Auto Number Bottom-Right (#autoNumber) */
+/* Auto Number Top-Right (#autoNumber) */
 #autoNumber,
 .card-auto-number {
-  position: absolute;
-  bottom: 0.8rem;
-  right: 1.25rem;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--text-muted);
-  opacity: 0.7;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  padding: 0.22rem 0.52rem;
+  border-radius: 8px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  letter-spacing: 0.2px;
 }
 
 /* ==========================================================================

@@ -727,24 +727,27 @@
 
       return `
         <article class="course-card ${statusClass} ${isPinnedClass} ${hasTaskClass}" data-card-id="${card.id}" ${borderAccentStyle}>
-          ${isAdmin ? `
-            <div class="card-menu-container" id="cardMenuContainer-${card.id}">
-              <button type="button" class="card-dots-btn" data-action="toggle-menu" data-id="${card.id}" title="Opsi Kartu">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-              <div class="card-dropdown-menu">
-                <button type="button" class="card-menu-item" data-action="pin" data-id="${card.id}">
-                  <i class="fa-solid fa-thumbtack"></i> <span>${card.pinned ? 'Lepas Pin' : 'Pin di Atas'}</span>
+          <div class="card-top-actions">
+            <span class="card-auto-number">#${idx + 1}</span>
+            ${isAdmin ? `
+              <div class="card-menu-container" id="cardMenuContainer-${card.id}">
+                <button type="button" class="card-dots-btn" data-action="toggle-menu" data-id="${card.id}" title="Opsi Kartu">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
                 </button>
-                <button type="button" class="card-menu-item" data-action="edit" data-id="${card.id}">
-                  <i class="fa-solid fa-pen"></i> <span>Edit Konten</span>
-                </button>
-                <button type="button" class="card-menu-item del" data-action="delete" data-id="${card.id}">
-                  <i class="fa-solid fa-trash"></i> <span>Hapus Konten</span>
-                </button>
+                <div class="card-dropdown-menu">
+                  <button type="button" class="card-menu-item" data-action="pin" data-id="${card.id}">
+                    <i class="fa-solid fa-thumbtack"></i> <span>${card.pinned ? 'Lepas Pin' : 'Pin di Atas'}</span>
+                  </button>
+                  <button type="button" class="card-menu-item" data-action="edit" data-id="${card.id}">
+                    <i class="fa-solid fa-pen"></i> <span>Edit Konten</span>
+                  </button>
+                  <button type="button" class="card-menu-item del" data-action="delete" data-id="${card.id}">
+                    <i class="fa-solid fa-trash"></i> <span>Hapus Konten</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          ` : ''}
+            ` : ''}
+          </div>
 
           ${priorityLabel ? `
             <span class="card-priority-badge ${priority === 'today' ? 'is-today' : 'is-tomorrow'}">
@@ -773,8 +776,6 @@
               <span>${isDone ? 'Selesai' : 'Tandai Selesai'}</span>
             </button>
           ` : ''}
-
-          <span class="card-auto-number">#${idx + 1}</span>
         </article>
       `;
     }).join('');
