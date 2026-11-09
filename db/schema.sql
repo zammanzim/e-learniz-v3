@@ -14,8 +14,8 @@
 --   • Staff : Supabase Auth (email + password) → v3.users.auth_user_id.
 --
 -- RLS (wewenang tulis ditentukan SERVER, bukan localStorage):
---   • anon          : SELECT semua tabel + tulis task_progress & visitors.
---   • authenticated : staff (cek v3.is_staff()) boleh tulis konten.
+--   • anon          : SELECT semua tabel + tulis task_progress (tulis visitors via RPC public.log_visitor).
+--   • authenticated : staff (cek v3.is_staff()) boleh tulis konten & clear_visitors.
 --
 -- WAJIB sekali setup: Dashboard → Project Settings → API →
 --   Exposed schemas → tambah "v3" → Save.
@@ -98,9 +98,13 @@ create table if not exists v3.task_progress (
     primary key (user_id, card_id)
 );
 
--- Pengunjung (1 baris per user, upsert by user_id)
+-- Pengunjung (mendukung siswa terdaftar & tamu dengan nomor unik)
 create table if not exists v3.visitors (
-    user_id           bigint primary key references v3.users(id) on delete cascade,
+    visitor_key       text primary key,
+    user_id           bigint references v3.users(id) on delete cascade,
+    guest_id          text,
+    display_name      text default '',
+    role              text not null default 'guest',
     class_id          bigint references v3.classes(id) on delete cascade,
     last_page         text default '',
     is_visible        boolean not null default true,
@@ -111,6 +115,8 @@ create table if not exists v3.visitors (
     screen_resolution text not null default '',
     browser_language  text not null default ''
 );
+
+create sequence if not exists v3.guest_seq;
 
 -- Jadwal (daily card): info per hari
 create table if not exists v3.schedule_days (
@@ -239,6 +245,172 @@ as $$
     );
 $$;
 
+-- Function internal: log tamu/user (security definer, atomic numbering)
+create or replace function v3.log_visitor(
+    p_class_id bigint,
+    p_user_id bigint default null,
+    p_guest_id text default null,
+    p_display_name text default null,
+    p_role text default null,
+    p_last_page text default '',
+    p_user_agent text default '',
+    p_device_type text default '',
+    p_platform text default '',
+    p_screen_resolution text default '',
+    p_browser_language text default ''
+)
+returns v3.visitors
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+declare
+    v_key text;
+    v_name text;
+    v_role text;
+    v_row v3.visitors;
+begin
+    if p_user_id is not null and p_user_id > 0 then
+        v_key := 'u:' || p_user_id;
+
+        select coalesce(u.full_name, u.nickname, 'Pengguna #' || p_user_id),
+               coalesce(u.role, 'student')
+          into v_name, v_role
+          from v3.users u
+         where u.id = p_user_id;
+
+        if v_name is null then
+            v_name := coalesce(p_display_name, 'Pengguna #' || p_user_id);
+            v_role := coalesce(p_role, 'student');
+        end if;
+    else
+        if p_guest_id is null or trim(p_guest_id) = '' then
+            p_guest_id := gen_random_uuid()::text;
+        end if;
+
+        v_key := 'g:' || p_guest_id;
+        v_role := 'guest';
+
+        select display_name
+          into v_name
+          from v3.visitors
+         where visitor_key = v_key;
+
+        if v_name is null or v_name = '' or v_name = 'Tamu' then
+            if p_display_name is not null
+               and p_display_name <> ''
+               and p_display_name <> 'Tamu' then
+                v_name := p_display_name;
+            else
+                v_name := 'Tamu #' || nextval('v3.guest_seq');
+            end if;
+        end if;
+    end if;
+
+    insert into v3.visitors (
+        visitor_key, user_id, guest_id, display_name, role, class_id,
+        last_page, is_visible, visited_at,
+        user_agent, device_type, platform, screen_resolution, browser_language
+    ) values (
+        v_key, p_user_id, p_guest_id, v_name, v_role, p_class_id,
+        coalesce(p_last_page, ''), true, now(),
+        coalesce(p_user_agent, ''), coalesce(p_device_type, ''),
+        coalesce(p_platform, ''), coalesce(p_screen_resolution, ''),
+        coalesce(p_browser_language, '')
+    )
+    on conflict (visitor_key) do update set
+        class_id          = excluded.class_id,
+        last_page         = excluded.last_page,
+        is_visible        = true,
+        visited_at        = now(),
+        display_name      = coalesce(v_name, v3.visitors.display_name),
+        role              = coalesce(v_role, v3.visitors.role),
+        user_agent        = case when excluded.user_agent <> ''        then excluded.user_agent        else v3.visitors.user_agent        end,
+        device_type       = case when excluded.device_type <> ''       then excluded.device_type       else v3.visitors.device_type       end,
+        platform          = case when excluded.platform <> ''          then excluded.platform          else v3.visitors.platform          end,
+        screen_resolution = case when excluded.screen_resolution <> '' then excluded.screen_resolution else v3.visitors.screen_resolution end,
+        browser_language  = case when excluded.browser_language <> ''  then excluded.browser_language  else v3.visitors.browser_language  end
+    returning * into v_row;
+
+    return v_row;
+end;
+$$;
+
+-- Function internal: clear visitors
+create or replace function v3.clear_visitors(p_class_id bigint default null)
+returns boolean
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+begin
+    if p_class_id is not null and p_class_id > 0 then
+        update v3.visitors
+           set is_visible = false
+         where class_id = p_class_id
+           and is_visible = true;
+    else
+        update v3.visitors
+           set is_visible = false
+         where is_visible = true;
+
+        begin
+            alter sequence v3.guest_seq restart with 1;
+        exception when others then
+            null;
+        end;
+    end if;
+
+    return true;
+end;
+$$;
+
+-- Wrapper publik: log tamu/user
+create or replace function public.log_visitor(
+    p_class_id bigint,
+    p_user_id bigint default null,
+    p_guest_id text default null,
+    p_display_name text default null,
+    p_role text default null,
+    p_last_page text default '',
+    p_user_agent text default '',
+    p_device_type text default '',
+    p_platform text default '',
+    p_screen_resolution text default '',
+    p_browser_language text default ''
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+declare
+    v_res v3.visitors;
+begin
+    v_res := v3.log_visitor(
+        p_class_id, p_user_id, p_guest_id, p_display_name, p_role,
+        p_last_page, p_user_agent, p_device_type, p_platform,
+        p_screen_resolution, p_browser_language
+    );
+    return to_jsonb(v_res);
+end;
+$$;
+
+-- Wrapper publik: clear visitors (hanya staff authenticated)
+create or replace function public.clear_visitors(p_class_id bigint default null)
+returns boolean
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+begin
+    if not v3.is_staff() then
+        raise exception 'not authorized' using errcode = '42501';
+    end if;
+    return v3.clear_visitors(p_class_id);
+end;
+$$;
+
 -- auto updated_at
 create or replace function v3.touch_updated_at()
 returns trigger language plpgsql as $$
@@ -296,33 +468,44 @@ create policy staff_write on v3.subjects         for all to authenticated using 
 create policy staff_write on v3.cards            for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
 create policy staff_write on v3.schedule_days    for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
 create policy staff_write on v3.schedule_periods for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
+create policy staff_write on v3.visitors         for all to authenticated using (v3.is_staff()) with check (v3.is_staff());
 
--- fitur ringan siswa (centang tugas + log pengunjung): tulis bebas (insert/update saja).
+-- fitur ringan siswa (centang tugas): tulis bebas (insert/update saja).
 -- DELETE sengaja TIDAK diberikan ke anon: uncheck tugas disimpan sebagai done=false.
 -- Hapus data hanya untuk staff (v3.is_staff()).
+-- Log pengunjung sekarang menggunakan RPC v3.log_visitor / public.log_visitor (security definer).
 create policy upsert_write on v3.task_progress for insert to anon, authenticated with check (true);
 create policy upsert_mod   on v3.task_progress for update to anon, authenticated using (true) with check (true);
 create policy staff_del    on v3.task_progress for delete to authenticated using (v3.is_staff());
-create policy upsert_write on v3.visitors      for insert to anon, authenticated with check (true);
-create policy upsert_mod   on v3.visitors      for update to anon, authenticated using (true) with check (true);
-create policy staff_del    on v3.visitors      for delete to authenticated using (v3.is_staff());
 
 -- ─────────────────────────────────────────────
 -- GRANT (schema custom butuh grant eksplisit buat PostgREST)
 -- ─────────────────────────────────────────────
 -- revoke eksplisit: grant tidak mencabut hak DELETE anon yang mungkin
 -- sudah diberikan versi schema sebelumnya (database yang sudah jalan).
-revoke delete on v3.task_progress, v3.visitors from anon;
+revoke delete on v3.task_progress from anon;
+revoke insert, update, delete on v3.visitors from anon;
 
 grant select on v3.classes, v3.users, v3.subjects, v3.cards, v3.task_progress, v3.visitors,
     v3.schedule_days, v3.schedule_periods
     to anon, authenticated;
-grant insert, update on v3.task_progress, v3.visitors to anon;
+grant insert, update on v3.task_progress to anon;
 grant insert, update, delete on v3.task_progress, v3.visitors to authenticated;
 grant insert, update, delete on v3.classes, v3.users, v3.subjects, v3.cards,
     v3.schedule_days, v3.schedule_periods to authenticated;
 grant usage, select on all sequences in schema v3 to anon, authenticated;
 alter default privileges in schema v3 grant usage, select on sequences to anon, authenticated;
+
+-- Function privileges:
+revoke all on function v3.log_visitor(bigint,bigint,text,text,text,text,text,text,text,text,text) from public, anon, authenticated;
+revoke all on function v3.clear_visitors(bigint) from public, anon, authenticated;
+grant execute on function v3.clear_visitors(bigint) to service_role;
+
+revoke all on function public.log_visitor(bigint,bigint,text,text,text,text,text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.log_visitor(bigint,bigint,text,text,text,text,text,text,text,text,text) to anon, authenticated;
+
+revoke all on function public.clear_visitors(bigint) from public, anon;
+grant execute on function public.clear_visitors(bigint) to authenticated;
 
 -- Realtime untuk daftar pengunjung (idempotent).
 do $$

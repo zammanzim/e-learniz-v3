@@ -155,6 +155,9 @@
   }
 
   function getOrGenerateGuestId() {
+    if (window.ELearnizDB && typeof window.ELearnizDB.getGuestId === 'function') {
+      return window.ELearnizDB.getGuestId();
+    }
     try {
       let gid = localStorage.getItem('elearniz_v3_guest_id');
       if (!gid) {
@@ -214,12 +217,17 @@
 
     let count = 0;
     try {
-      // Saat modal tertutup (atau tab = kelas aktif), pakai cache daftar
-      // supaya tamu dari localStorage ikut terhitung.
-      if (Number(selectedClassId) === Number(activeClassId) && cachedVisitors.length > 0) {
+      // Saat modal terbuka pada kelas aktif, pakai cache daftar yang baru direfresh.
+      // Saat modal tertutup, baca count DB (atau fallback ke cache jika ada).
+      if (modalOpen &&
+          Number(selectedClassId) === Number(activeClassId) &&
+          cachedVisitors.length > 0) {
         count = cachedVisitors.length;
       } else {
         count = await window.ELearnizDB.countVisitors(activeClassId);
+        if (count === 0 && cachedVisitors.length > 0) {
+          count = cachedVisitors.length;
+        }
       }
       updateBadge(count);
       if (!modalOpen) updateModalCount(count);
@@ -249,7 +257,7 @@
     if (refreshTimer) return;
     refreshTimer = setTimeout(async () => {
       refreshTimer = null;
-      if (modalOpen) await refreshVisitors();
+      await refreshVisitors();
       await refreshBadge();
     }, 450);
   }
@@ -337,7 +345,7 @@
       : getLocalGuestName();
 
     const role = activeUser ? (activeUser.role || 'student') : 'guest';
-    const classId = activeUser ? (activeUser.class_id || activeClassId) : activeClassId;
+    const classId = activeClassId || (activeUser ? activeUser.class_id : null);
 
     presenceChannel = client.channel('elearniz-v3-online', {
       config: { presence: { key } }
@@ -505,27 +513,7 @@
       list.push(v);
     });
 
-    onlineUsers.forEach((u, k) => {
-      if (target && u.class_id && Number(u.class_id) !== Number(target)) return;
-      const key = k || (u.user_id ? `u:${u.user_id}` : (u.guest_id ? `g:${u.guest_id}` : ''));
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      list.unshift({
-        visitor_key: key,
-        user_id: u.user_id || null,
-        guest_id: u.guest_id || null,
-        class_id: u.class_id,
-        display_name: u.display_name,
-        nickname: u.nickname,
-        full_name: u.display_name,
-        role: u.role,
-        avatar_url: u.avatar_url,
-        last_page: 'Sedang online',
-        visited_at: u.online_at || new Date().toISOString(),
-        source: 'presence'
-      });
-    });
-
+    // Presence hanya untuk status online (dot); baris pengunjung berasal dari DB / localStorage.
     list.sort((a, b) => new Date(b.visited_at || 0) - new Date(a.visited_at || 0));
     return list;
   }

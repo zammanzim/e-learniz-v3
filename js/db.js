@@ -8,7 +8,7 @@
    - v3.schedule_periods (id, class_id, weekday, urutan, time_start, time_end, label, kind, subject_id)
    - v3.users (id, class_id, nickname, full_name, role, auth_user_id, avatar_url)
    - v3.task_progress (user_id, card_id, done, updated_at)
-   - v3.visitors (user_id, class_id, last_page, is_visible, visited_at)
+   - v3.visitors (visitor_key, user_id, guest_id, display_name, role, class_id, last_page, is_visible, visited_at)
    ========================================================================== */
 (function () {
   const DAY_NAMES = {
@@ -597,8 +597,8 @@
     }
     writeLocalVisitors(classId, local);
 
-    // Debounce: jangan spam DB kalau halaman sama dibuka berulang < 2 menit.
-    const debounceKey = `elearniz_v3_visit_log_${visitorKey}`;
+    // Debounce: jangan spam DB kalau halaman sama dibuka berulang < 2 menit (per kelas).
+    const debounceKey = `elearniz_v3_visit_log_${Number(classId)}_${visitorKey}`;
     let last = null;
     try {
       last = JSON.parse(localStorage.getItem(debounceKey) || 'null');
@@ -629,35 +629,11 @@
       });
       if (!error && data) {
         serverRow = data;
+      } else if (error) {
+        console.warn('log_visitor rpc error:', error);
       }
-    } catch (_) {}
-
-    // Prioritas 2: Fallback upsert langsung tabel v3.visitors
-    if (!serverRow) {
-      try {
-        const db = api();
-        if (db) {
-          const { data, error } = await db.from('visitors').upsert({
-            visitor_key: visitorKey,
-            user_id: userId,
-            guest_id: guestId,
-            display_name: name,
-            role,
-            class_id: Number(classId),
-            last_page: lastPage,
-            is_visible: true,
-            visited_at: nowIso,
-            user_agent: device.user_agent,
-            device_type: device.device_type,
-            platform: device.platform,
-            screen_resolution: device.screen_resolution,
-            browser_language: device.browser_language
-          }, { onConflict: 'visitor_key' }).select().single();
-          if (!error && data) serverRow = data;
-        }
-      } catch (err) {
-        console.warn('logVisit direct upsert fallback failed:', err);
-      }
+    } catch (err) {
+      console.warn('log_visitor rpc failed:', err);
     }
 
     if (serverRow && serverRow.display_name) {
@@ -776,27 +752,22 @@
     }
   }
 
-  // Staff-only di UI (RLS v3 masih mengizinkan update visitors untuk anon,
-  // karena itu dipakai untuk log kunjungan).
+  // Staff-only di UI dan DB (public.clear_visitors memverifikasi v3.is_staff()).
   async function clearVisitors(classId) {
     const client = getClient();
-    try {
-      if (client) {
-        await client.rpc('clear_visitors', { p_class_id: classId ? Number(classId) : null });
-      }
-    } catch (_) {
-      try {
-        const db = api();
-        if (db) {
-          let query = db.from('visitors').update({ is_visible: false }).eq('is_visible', true);
-          if (classId) query = query.eq('class_id', Number(classId));
-          await query;
-        }
-      } catch (err) {
-        console.warn('clearVisitors direct update failed:', err);
-      }
+    let dbError = null;
+
+    if (client) {
+      const { data, error } = await client.rpc('clear_visitors', {
+        p_class_id: classId ? Number(classId) : null
+      });
+      if (error) dbError = error;
+      else if (data === false) dbError = new Error('Reset pengunjung gagal.');
+    } else {
+      dbError = new Error('Koneksi Supabase tidak tersedia.');
     }
 
+    // Selalu bersihkan cache lokal (agar UI offline konsisten).
     try {
       if (classId) {
         writeLocalVisitors(classId, []);
@@ -808,11 +779,25 @@
           if (key && key.indexOf(prefix) === 0) localStorage.removeItem(key);
         }
       }
+      // Hapus debounce agar kunjungan berikutnya langsung tercatat.
+      const debouncePrefix = 'elearniz_v3_visit_log_';
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (key && key.indexOf(debouncePrefix) === 0) localStorage.removeItem(key);
+      }
     } catch (_) {}
+
+    if (dbError) throw dbError;
     return true;
   }
 
+  let _cachedAllUsers = null;
+  let _cachedAllUsersTs = 0;
+
   async function listUsers(classId) {
+    if (!classId && _cachedAllUsers && (Date.now() - _cachedAllUsersTs < 5 * 60 * 1000)) {
+      return _cachedAllUsers;
+    }
     try {
       const db = api();
       if (!db) return [];
@@ -822,7 +807,7 @@
       }
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((u) => ({
+      const res = (data || []).map((u) => ({
         id: Number(u.id),
         class_id: Number(u.class_id),
         nickname: u.nickname || u.full_name,
@@ -831,6 +816,11 @@
         auth_user_id: u.auth_user_id || null,
         avatar_url: u.avatar_url || ''
       }));
+      if (!classId) {
+        _cachedAllUsers = res;
+        _cachedAllUsersTs = Date.now();
+      }
+      return res;
     } catch (e) {
       console.warn('listUsers error:', e);
       return [];
@@ -854,6 +844,7 @@
     getCompletedCardIds,
     toggleTaskCompleted,
     logVisit,
+    getGuestId: getOrGenerateGuestId,
     listVisitors,
     listTodayVisitors,
     countVisitors,
