@@ -378,7 +378,11 @@
   async function logCurrentVisit() {
     if (!activeClassId) return;
     try {
-      const guestId = activeUser ? null : getOrGenerateGuestId();
+      let prevGuestId = null;
+      try {
+        prevGuestId = localStorage.getItem('elearniz_v3_guest_id');
+      } catch (_) {}
+      const guestId = activeUser ? prevGuestId : getOrGenerateGuestId();
       const guestName = activeUser ? null : getLocalGuestName();
       const res = await window.ELearnizDB.logVisit(activeClassId, {
         userId: activeUser ? activeUser.id : null,

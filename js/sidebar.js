@@ -7,7 +7,8 @@
       onNavigateHome,
       onNavigateMateri,
       onNavigateTugas,
-      onNavigateSubject
+      onNavigateSubject,
+      onNavigateTema
     } = options || {};
 
     const hamburger = document.getElementById('hamburgerBtn');
@@ -54,6 +55,7 @@
         if (target === 'home' && onNavigateHome) onNavigateHome();
         if (target === 'materi' && onNavigateMateri) onNavigateMateri();
         if (target === 'tugas' && onNavigateTugas) onNavigateTugas();
+        if (target === 'tema' && onNavigateTema) onNavigateTema();
       });
     });
 

@@ -7,10 +7,19 @@
     <meta name="theme-color" content="#121826" />
     <script>
       (function () {
-        const saved = localStorage.getItem('elearniz_theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', saved);
+        let isDark = Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        try {
+          const raw = localStorage.getItem('elearniz_theme_settings');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed.mode === 'light') isDark = false;
+            else if (parsed.mode === 'dark') isDark = true;
+          }
+        } catch (_) {}
+        const theme = isDark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
         const tc = document.querySelector('meta[name="theme-color"]');
-        if (tc) tc.setAttribute('content', saved === 'dark' ? '#121826' : '#ffffff');
+        if (tc) tc.setAttribute('content', theme === 'dark' ? '#121826' : '#ffffff');
       })();
     </script>
     <style>

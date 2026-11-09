@@ -557,16 +557,87 @@
     }
   }
 
+  function cleanLocalGuestTrace(guestId) {
+    if (!guestId) return;
+    try {
+      const cleanId = String(guestId).replace(/^g:/, '');
+      const gKey = `g:${cleanId}`;
+      const prefix = 'elearniz_v3_visitors_';
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (key && key.indexOf(prefix) === 0) {
+          try {
+            const raw = JSON.parse(localStorage.getItem(key) || '[]');
+            if (Array.isArray(raw)) {
+              const filtered = raw.filter((v) => {
+                if (!v) return false;
+                const vk = v.visitor_key || '';
+                const gid = v.guest_id || '';
+                return vk !== gKey && vk !== cleanId && gid !== cleanId && gid !== guestId;
+              });
+              if (filtered.length !== raw.length) {
+                localStorage.setItem(key, JSON.stringify(filtered));
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Hapus debounce log untuk tamu ini
+      const debouncePrefix = 'elearniz_v3_visit_log_';
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (key && key.indexOf(debouncePrefix) === 0 && (key.includes(gKey) || key.includes(cleanId))) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      // Hapus ID dan nama tamu
+      localStorage.removeItem('elearniz_v3_guest_id');
+      localStorage.removeItem('elearniz_v3_guest_name');
+    } catch (_) {}
+  }
+
+  async function retireGuest(guestId) {
+    const gid = guestId || (function () {
+      try { return localStorage.getItem('elearniz_v3_guest_id'); } catch (_) { return null; }
+    })();
+    if (!gid) return true;
+
+    const client = getClient();
+    if (client) {
+      try {
+        await client.rpc('retire_guest_visitor', { p_guest_id: gid });
+      } catch (err) {
+        console.warn('retireGuest rpc error:', err);
+      }
+    }
+    cleanLocalGuestTrace(gid);
+    return true;
+  }
+
   async function logVisit(classId, visitorInfo) {
     const info = visitorInfo || {};
     const userId = (info.userId && Number(info.userId) > 0) ? Number(info.userId) : null;
-    const guestId = userId ? null : (info.guestId || getOrGenerateGuestId());
+    let storedGuestId = null;
+    try {
+      storedGuestId = localStorage.getItem('elearniz_v3_guest_id');
+    } catch (_) {}
+
+    // Jika user sudah login (userId ada), catat guestId sebelumnya untuk di-retire di DB & localStorage
+    const guestIdToRetire = userId ? (info.guestId || storedGuestId || null) : null;
+    const guestId = userId ? null : (info.guestId || storedGuestId || getOrGenerateGuestId());
     const visitorKey = userId ? `u:${userId}` : `g:${guestId}`;
     let name = info.displayName || (userId ? 'Pengguna' : 'Tamu');
     const role = info.role || (userId ? 'student' : 'guest');
     const nowIso = new Date().toISOString();
     const lastPage = info.lastPage || '';
     const device = info.device || getDeviceInfo();
+
+    // Jika ini akun yang login dan ada jejak tamu sebelumnya di browser ini, bersihkan sekarang
+    if (userId && guestIdToRetire) {
+      cleanLocalGuestTrace(guestIdToRetire);
+    }
 
     // Simpan juga di localStorage: fallback kalau DB/RLS sedang bermasalah
     const local = readLocalVisitors(classId);
@@ -613,11 +684,11 @@
 
     let serverRow = null;
     try {
-      // Prioritas 1: Gunakan stored function public.log_visitor (menjamin pemberian nomor Tamu #1, #2 secara atomik)
+      // Prioritas 1: Gunakan stored function public.log_visitor (atomik + retire jejak tamu saat login)
       const { data, error } = await client.rpc('log_visitor', {
         p_class_id: Number(classId),
         p_user_id: userId,
-        p_guest_id: guestId,
+        p_guest_id: userId ? guestIdToRetire : guestId,
         p_display_name: name !== 'Tamu' ? name : null,
         p_role: role,
         p_last_page: lastPage,
@@ -629,6 +700,9 @@
       });
       if (!error && data) {
         serverRow = data;
+        if (userId && guestIdToRetire) {
+          cleanLocalGuestTrace(guestIdToRetire);
+        }
       } else if (error) {
         console.warn('log_visitor rpc error:', error);
       }
@@ -845,6 +919,7 @@
     toggleTaskCompleted,
     logVisit,
     getGuestId: getOrGenerateGuestId,
+    retireGuest,
     listVisitors,
     listTodayVisitors,
     countVisitors,

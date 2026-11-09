@@ -245,6 +245,32 @@ as $$
     );
 $$;
 
+-- Function internal: retire guest visitor saat login akun
+create or replace function v3.retire_guest_visitor(p_guest_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+declare
+    v_gid text;
+begin
+    if p_guest_id is null or trim(p_guest_id) = '' then
+        return false;
+    end if;
+
+    v_gid := regexp_replace(trim(p_guest_id), '^g:', '');
+
+    update v3.visitors
+       set is_visible = false
+     where (visitor_key = 'g:' || v_gid or guest_id = v_gid or guest_id = p_guest_id)
+       and role = 'guest'
+       and is_visible = true;
+
+    return true;
+end;
+$$;
+
 -- Function internal: log tamu/user (security definer, atomic numbering)
 create or replace function v3.log_visitor(
     p_class_id bigint,
@@ -283,6 +309,15 @@ begin
             v_name := coalesce(p_display_name, 'Pengguna #' || p_user_id);
             v_role := coalesce(p_role, 'student');
         end if;
+
+        -- Jika ada jejak guest_id dari perangkat yang sama sebelum login,
+        -- sembunyikan/hilangkan baris tamu tersebut agar tidak duplikat.
+        if p_guest_id is not null and trim(p_guest_id) <> '' then
+            perform v3.retire_guest_visitor(p_guest_id);
+        end if;
+
+        -- Untuk akun terdaftar, kolom guest_id dikosongkan
+        p_guest_id := null;
     else
         if p_guest_id is null or trim(p_guest_id) = '' then
             p_guest_id := gen_random_uuid()::text;
@@ -320,6 +355,7 @@ begin
     )
     on conflict (visitor_key) do update set
         class_id          = excluded.class_id,
+        guest_id          = excluded.guest_id,
         last_page         = excluded.last_page,
         is_visible        = true,
         visited_at        = now(),
@@ -408,6 +444,18 @@ begin
         raise exception 'not authorized' using errcode = '42501';
     end if;
     return v3.clear_visitors(p_class_id);
+end;
+$$;
+
+-- Wrapper publik: retire guest visitor saat login akun
+create or replace function public.retire_guest_visitor(p_guest_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = v3, public
+as $$
+begin
+    return v3.retire_guest_visitor(p_guest_id);
 end;
 $$;
 
@@ -507,7 +555,15 @@ grant execute on function public.log_visitor(bigint,bigint,text,text,text,text,t
 revoke all on function public.clear_visitors(bigint) from public, anon;
 grant execute on function public.clear_visitors(bigint) to authenticated;
 
+revoke all on function v3.retire_guest_visitor(text) from public, anon, authenticated;
+grant execute on function v3.retire_guest_visitor(text) to service_role;
+
+revoke all on function public.retire_guest_visitor(text) from public, anon, authenticated;
+grant execute on function public.retire_guest_visitor(text) to anon, authenticated;
+
 -- Realtime untuk daftar pengunjung (idempotent).
+alter table v3.visitors replica identity full;
+
 do $$
 begin
     if not exists (

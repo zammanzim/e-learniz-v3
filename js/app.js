@@ -84,7 +84,8 @@
       onNavigateTugas: () => switchView('tugas'),
       onNavigateSubject: (sid) => {
         switchView('subject', sid || null);
-      }
+      },
+      onNavigateTema: () => switchView('tema')
     });
 
     try {
@@ -215,21 +216,61 @@
       };
     }
 
+    const goTemaLink = document.getElementById('dropdownGoTema');
+    if (goTemaLink) {
+      goTemaLink.onclick = (e) => {
+        e.preventDefault();
+        if (typeof window.toggleProfileDropdown === 'function') {
+          window.toggleProfileDropdown(false);
+        }
+        switchView('tema');
+      };
+    }
+
     // Theme Switcher Toggle inside Profile Dropdown
     function updateThemeUI() {
-      const isDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
+      const s = window.ELearnizTheme ? window.ELearnizTheme.getSettings() : { mode: 'auto' };
+      const mode = (s && s.mode) || 'auto';
+      const effectiveMode = window.ELearnizTheme
+        ? window.ELearnizTheme.resolveEffectiveMode(mode)
+        : (document.documentElement.getAttribute('data-theme') || 'dark');
+      const isDark = effectiveMode === 'dark';
+
       const themeIcon = document.getElementById('dropdownThemeIcon');
       const themeText = document.getElementById('dropdownThemeText');
       if (themeIcon) {
-        themeIcon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-        themeIcon.style.color = isDark ? '#fbbf24' : '#64748b';
+        if (mode === 'auto') {
+          themeIcon.className = 'fa-solid fa-circle-half-stroke';
+          themeIcon.style.color = 'var(--accent)';
+        } else if (isDark) {
+          themeIcon.className = 'fa-solid fa-moon';
+          themeIcon.style.color = '#38bdf8';
+        } else {
+          themeIcon.className = 'fa-solid fa-sun';
+          themeIcon.style.color = '#f59e0b';
+        }
       }
       if (themeText) {
-        themeText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
+        if (mode === 'auto') {
+          themeText.textContent = isDark ? 'Sistem (Gelap)' : 'Sistem (Terang)';
+        } else {
+          themeText.textContent = isDark ? 'Mode Gelap' : 'Mode Terang';
+        }
       }
     }
 
     function toggleTheme() {
+      if (window.ELearnizTheme && typeof window.ELearnizTheme.toggleMode === 'function') {
+        const nextSettings = window.ELearnizTheme.toggleMode();
+        const mode = nextSettings.mode;
+        const effective = window.ELearnizTheme.resolveEffectiveMode(mode);
+        updateThemeUI();
+        const toastMsg = mode === 'auto'
+          ? `Mode Otomatis Sistem diaktifkan 💻 (${effective === 'dark' ? 'Gelap' : 'Terang'})`
+          : (mode === 'dark' ? 'Mode Gelap diaktifkan 🌙' : 'Mode Terang diaktifkan ☀️');
+        showToast(toastMsg);
+        return;
+      }
       const current = document.documentElement.getAttribute('data-theme') || 'dark';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
@@ -241,6 +282,7 @@
     }
 
     updateThemeUI();
+    window.addEventListener('elearniz-theme-changed', updateThemeUI);
 
     const themeToggle = document.getElementById('dropdownThemeToggle');
     if (themeToggle && !themeToggle._bound) {
@@ -352,6 +394,8 @@
       switchView('tugas', null, false);
     } else if (route === 'materi' || route === 'material' || route === 'materials') {
       switchView('materi', null, false);
+    } else if (route === 'tema' || route === 'theme' || route === 'personalize' || route === 'personalisasi') {
+      switchView('tema', null, false);
     } else if (route === 'mapel' || route === 'subject' || route === 'subjects') {
       const subjectKey = parts[1];
       if (subjectKey) {
@@ -369,6 +413,7 @@
   function routeHashFor(viewName) {
     if (viewName === 'tugas') return '#/tugas';
     if (viewName === 'materi') return '#/materi';
+    if (viewName === 'tema') return '#/tema';
     if (viewName === 'subject') {
       if (!state.activeSubjectId) return '#/mapel';
       const subj = state.subjects.find((s) => String(s.id) === String(state.activeSubjectId));
@@ -392,6 +437,8 @@
     document.getElementById('viewMateri').classList.toggle('active', viewName === 'materi');
     document.getElementById('viewTugas').classList.toggle('active', viewName === 'tugas');
     document.getElementById('viewSubject').classList.toggle('active', viewName === 'subject');
+    const viewTema = document.getElementById('viewTema');
+    if (viewTema) viewTema.classList.toggle('active', viewName === 'tema');
 
     if (updateHash) {
       const nextHash = routeHashFor(viewName);
@@ -524,6 +571,11 @@
     else if (state.activeView === 'materi') renderMateriView(allMateriCards, priorityMap);
     else if (state.activeView === 'tugas') renderTugasView(taskCards, pendingTaskCards, priorityMap);
     else if (state.activeView === 'subject') renderSubjectView(priorityMap);
+    else if (state.activeView === 'tema') {
+      if (window.ELearnizTheme && typeof window.ELearnizTheme.renderView === 'function') {
+        window.ELearnizTheme.renderView();
+      }
+    }
   }
 
   /* ------------------------------------------------------------------------
@@ -1426,14 +1478,15 @@
 
     const viewW = wrapper.clientWidth;
     const viewH = wrapper.clientHeight;
-    const baseW = img.offsetWidth > 0 ? img.offsetWidth : (img.naturalWidth || viewW * 0.95);
-    const baseH = img.offsetHeight > 0 ? img.offsetHeight : (img.naturalHeight || viewH * 0.95);
+    const baseW = img.offsetWidth > 0 ? img.offsetWidth : (img.naturalWidth || viewW);
+    const baseH = img.offsetHeight > 0 ? img.offsetHeight : (img.naturalHeight || viewH);
 
     const scaledW = baseW * currentZoomScale;
     const scaledH = baseH * currentZoomScale;
 
-    const maxPanX = Math.max(0, (scaledW - viewW) / 2 + 30);
-    const maxPanY = Math.max(0, (scaledH - viewH) / 2 + 30);
+    // Klem tepi gambar presisi: berhenti pas di pinggir layar tanpa celah kosong
+    const maxPanX = Math.max(0, (scaledW - viewW) / 2);
+    const maxPanY = Math.max(0, (scaledH - viewH) / 2);
 
     zoomPanX = Math.max(-maxPanX, Math.min(maxPanX, zoomPanX));
     zoomPanY = Math.max(-maxPanY, Math.min(maxPanY, zoomPanY));
@@ -1616,14 +1669,44 @@
       mouseStartPanY = zoomPanY;
       wrapper.classList.add('is-dragging');
       e.preventDefault();
+      e.stopPropagation();
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!isMousePanning) return;
+      if (!isMousePanning || !isViewerZoomed()) return;
       const dx = e.clientX - mouseStartX;
       const dy = e.clientY - mouseStartY;
-      zoomPanX = mouseStartPanX + dx;
-      zoomPanY = mouseStartPanY + dy;
+
+      const img = getActiveSlideImage();
+      const viewW = wrapper ? wrapper.clientWidth : window.innerWidth;
+      const viewH = wrapper ? wrapper.clientHeight : window.innerHeight;
+      const baseW = (img && img.offsetWidth > 0) ? img.offsetWidth : viewW;
+      const baseH = (img && img.offsetHeight > 0) ? img.offsetHeight : viewH;
+      const maxPanX = Math.max(0, (baseW * currentZoomScale - viewW) / 2);
+      const maxPanY = Math.max(0, (baseH * currentZoomScale - viewH) / 2);
+
+      let targetPanX = mouseStartPanX + dx;
+      let targetPanY = mouseStartPanY + dy;
+
+      // Klem dan sesuaikan anchor geser agar tidak ada dead-zone saat berbalik arah
+      if (targetPanX > maxPanX) {
+        targetPanX = maxPanX;
+        mouseStartPanX = maxPanX - dx;
+      } else if (targetPanX < -maxPanX) {
+        targetPanX = -maxPanX;
+        mouseStartPanX = -maxPanX - dx;
+      }
+
+      if (targetPanY > maxPanY) {
+        targetPanY = maxPanY;
+        mouseStartPanY = maxPanY - dy;
+      } else if (targetPanY < -maxPanY) {
+        targetPanY = -maxPanY;
+        mouseStartPanY = -maxPanY - dy;
+      }
+
+      zoomPanX = targetPanX;
+      zoomPanY = targetPanY;
       updateZoomUI(false);
     });
 
@@ -1640,6 +1723,7 @@
     let touchStartY = 0;
     let touchStartPanX = 0;
     let touchStartPanY = 0;
+    let touchHasMoved = false;
 
     let isPinching = false;
     let initialPinchDist = 0;
@@ -1670,39 +1754,26 @@
       const img = getActiveSlideImage();
       if (!img) return;
 
+      touchHasMoved = false;
+
       if (e.touches.length === 2) {
         // 2-finger pinch start
         isPinching = true;
         isTouchPanning = false;
         initialPinchDist = getTouchDistance(e.touches[0], e.touches[1]);
         initialPinchScale = currentZoomScale;
+        e.stopPropagation();
       } else if (e.touches.length === 1) {
-        // Double tap detection
-        const now = Date.now();
         const touch = e.touches[0];
-        const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
-
-        if (now - lastTapTime < 320 && dist < 35) {
-          lastTapTime = 0;
-          if (isViewerZoomed()) {
-            resetZoom(true);
-          } else {
-            setZoom(DOUBLE_TAP_ZOOM, touch.clientX, touch.clientY, true);
-          }
-          isTouchPanning = false;
-          return;
-        }
-        lastTapTime = now;
-        lastTapX = touch.clientX;
-        lastTapY = touch.clientY;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
 
         if (isViewerZoomed()) {
           isTouchPanning = true;
-          touchStartX = touch.clientX;
-          touchStartY = touch.clientY;
           touchStartPanX = zoomPanX;
           touchStartPanY = zoomPanY;
           wrapper.classList.add('is-dragging');
+          e.stopPropagation();
         }
       }
     }, { passive: true });
@@ -1710,6 +1781,8 @@
     wrapper.addEventListener('touchmove', (e) => {
       if (isPinching && e.touches.length === 2) {
         if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        touchHasMoved = true;
         const dist = getTouchDistance(e.touches[0], e.touches[1]);
         if (initialPinchDist > 0) {
           const factor = dist / initialPinchDist;
@@ -1719,16 +1792,49 @@
         }
       } else if (isTouchPanning && e.touches.length === 1 && isViewerZoomed()) {
         if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
         const touch = e.touches[0];
         const dx = touch.clientX - touchStartX;
         const dy = touch.clientY - touchStartY;
-        zoomPanX = touchStartPanX + dx;
-        zoomPanY = touchStartPanY + dy;
+        if (Math.hypot(dx, dy) > 6) {
+          touchHasMoved = true;
+        }
+
+        const img = getActiveSlideImage();
+        const viewW = wrapper ? wrapper.clientWidth : window.innerWidth;
+        const viewH = wrapper ? wrapper.clientHeight : window.innerHeight;
+        const baseW = (img && img.offsetWidth > 0) ? img.offsetWidth : viewW;
+        const baseH = (img && img.offsetHeight > 0) ? img.offsetHeight : viewH;
+        const maxPanX = Math.max(0, (baseW * currentZoomScale - viewW) / 2);
+        const maxPanY = Math.max(0, (baseH * currentZoomScale - viewH) / 2);
+
+        let targetPanX = touchStartPanX + dx;
+        let targetPanY = touchStartPanY + dy;
+
+        // Klem tepi dan hilangkan dead-zone saat menggeser di batas pinggir
+        if (targetPanX > maxPanX) {
+          targetPanX = maxPanX;
+          touchStartPanX = maxPanX - dx;
+        } else if (targetPanX < -maxPanX) {
+          targetPanX = -maxPanX;
+          touchStartPanX = -maxPanX - dx;
+        }
+
+        if (targetPanY > maxPanY) {
+          targetPanY = maxPanY;
+          touchStartPanY = maxPanY - dy;
+        } else if (targetPanY < -maxPanY) {
+          targetPanY = -maxPanY;
+          touchStartPanY = -maxPanY - dy;
+        }
+
+        zoomPanX = targetPanX;
+        zoomPanY = targetPanY;
         updateZoomUI(false);
       }
     }, { passive: false });
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e) => {
       if (isPinching) {
         isPinching = false;
         if (currentZoomScale < 1.05) {
@@ -1741,6 +1847,30 @@
         isTouchPanning = false;
         if (wrapper) wrapper.classList.remove('is-dragging');
         updateZoomUI(true);
+      }
+
+      // Deteksi double-tap HANYA pada ketukan diam (bukan setelah drag/pan)
+      if (!touchHasMoved && (!e.touches || e.touches.length === 0)) {
+        const touch = e.changedTouches ? e.changedTouches[0] : null;
+        if (touch) {
+          const now = Date.now();
+          const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+          if (now - lastTapTime < 320 && dist < 35) {
+            lastTapTime = 0;
+            if (isViewerZoomed()) {
+              resetZoom(true);
+            } else {
+              setZoom(DOUBLE_TAP_ZOOM, touch.clientX, touch.clientY, true);
+            }
+            return;
+          }
+          lastTapTime = now;
+          lastTapX = touch.clientX;
+          lastTapY = touch.clientY;
+        }
+      } else if (touchHasMoved) {
+        // Hapus tracker double-tap agar gesture pan berulang tidak pernah mereset zoom secara tak sengaja
+        lastTapTime = 0;
       }
     };
 
@@ -1757,12 +1887,18 @@
     let isHorizontal = null;
 
     document.addEventListener('touchstart', (e) => {
+      // Jika gambar sedang di-zoom, KUNCI TOTAL swipe slide agar tidak pernah terpindah
+      if (isViewerZoomed()) {
+        isSwiping = false;
+        currentDx = 0;
+        return;
+      }
       const modal = document.getElementById('cardDetailModal');
       if (!modal || !modal.classList.contains('is-open')) return;
       if (!e.target.closest('#detailSliderWrapper')) return;
       if (e.target.closest('.modern-slider-arrow, .slider-dot, .modern-floating-info-pill, .photo-counter-pill, .close-detail-btn, .viewer-zoom-controls')) return;
       if (currentViewerPhotos.length <= 1) return;
-      if (e.touches.length > 1 || isViewerZoomed()) return;
+      if (e.touches.length > 1) return;
 
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
@@ -1775,8 +1911,18 @@
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
+      // Jika gambar sedang di-zoom, batalkan swipe dan reset posisi track
+      if (isViewerZoomed()) {
+        if (isSwiping) {
+          isSwiping = false;
+          currentDx = 0;
+          const track = document.getElementById('detailSliderTrack');
+          if (track) track.style.transform = `translate3d(-${currentViewerIndex * 100}%, 0, 0)`;
+        }
+        return;
+      }
       if (!isSwiping || currentViewerPhotos.length <= 1) return;
-      if (e.touches.length > 1 || isViewerZoomed()) {
+      if (e.touches.length > 1) {
         isSwiping = false;
         return;
       }
@@ -1805,6 +1951,12 @@
     }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
+      // Jika gambar sedang di-zoom, jangan pernah pindah slide
+      if (isViewerZoomed()) {
+        isSwiping = false;
+        currentDx = 0;
+        return;
+      }
       if (!isSwiping) return;
       isSwiping = false;
 
