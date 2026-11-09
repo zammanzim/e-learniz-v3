@@ -544,19 +544,36 @@
     } catch (_) {}
   }
 
+  function getOrGenerateGuestId() {
+    try {
+      let gid = localStorage.getItem('elearniz_v3_guest_id');
+      if (!gid) {
+        gid = 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+        localStorage.setItem('elearniz_v3_guest_id', gid);
+      }
+      return gid;
+    } catch (_) {
+      return 'g_' + Date.now().toString(36);
+    }
+  }
+
   async function logVisit(classId, visitorInfo) {
     const info = visitorInfo || {};
-    const name = info.displayName || 'Tamu';
-    const role = info.role || 'guest';
+    const userId = (info.userId && Number(info.userId) > 0) ? Number(info.userId) : null;
+    const guestId = userId ? null : (info.guestId || getOrGenerateGuestId());
+    const visitorKey = userId ? `u:${userId}` : `g:${guestId}`;
+    let name = info.displayName || (userId ? 'Pengguna' : 'Tamu');
+    const role = info.role || (userId ? 'student' : 'guest');
     const nowIso = new Date().toISOString();
     const lastPage = info.lastPage || '';
     const device = info.device || getDeviceInfo();
 
-    // Simpan juga di localStorage: fallback kalau DB/RLS sedang bermasalah,
-    // dan satu-satunya sumber untuk tamu (tamu tidak punya user_id).
+    // Simpan juga di localStorage: fallback kalau DB/RLS sedang bermasalah
     const local = readLocalVisitors(classId);
     const localEntry = {
-      user_id: info.userId || null,
+      visitor_key: visitorKey,
+      user_id: userId,
+      guest_id: guestId,
       display_name: name,
       role,
       last_page: lastPage,
@@ -569,9 +586,9 @@
       source: 'local'
     };
     const matchIdx = local.findIndex((v) => (
-      info.userId
-        ? String(v.user_id) === String(info.userId)
-        : String(v.display_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()
+      v.visitor_key ? v.visitor_key === visitorKey : (
+        userId ? String(v.user_id) === String(userId) : String(v.guest_id || '') === String(guestId)
+      )
     ));
     if (matchIdx >= 0) {
       local[matchIdx] = { ...local[matchIdx], ...localEntry };
@@ -580,38 +597,89 @@
     }
     writeLocalVisitors(classId, local);
 
-    if (!info.userId) return;
-
     // Debounce: jangan spam DB kalau halaman sama dibuka berulang < 2 menit.
-    const debounceKey = `elearniz_v3_visit_log_${info.userId}`;
+    const debounceKey = `elearniz_v3_visit_log_${visitorKey}`;
     let last = null;
     try {
       last = JSON.parse(localStorage.getItem(debounceKey) || 'null');
     } catch (_) {}
     const now = Date.now();
     if (last && last.page === lastPage && (now - Number(last.ts || 0)) < 2 * 60 * 1000) {
-      return;
+      return localEntry;
     }
 
-    const db = api();
-    if (!db) throw new Error('Koneksi Supabase tidak tersedia.');
-    const { error } = await db.from('visitors').upsert({
-      user_id: Number(info.userId),
-      class_id: Number(classId),
-      last_page: lastPage,
-      is_visible: true,
-      visited_at: nowIso,
-      user_agent: device.user_agent,
-      device_type: device.device_type,
-      platform: device.platform,
-      screen_resolution: device.screen_resolution,
-      browser_language: device.browser_language
-    }, { onConflict: 'user_id' });
-    if (error) throw error;
+    const client = getClient();
+    if (!client) return localEntry;
+
+    let serverRow = null;
+    try {
+      // Prioritas 1: Gunakan stored function public.log_visitor (menjamin pemberian nomor Tamu #1, #2 secara atomik)
+      const { data, error } = await client.rpc('log_visitor', {
+        p_class_id: Number(classId),
+        p_user_id: userId,
+        p_guest_id: guestId,
+        p_display_name: name !== 'Tamu' ? name : null,
+        p_role: role,
+        p_last_page: lastPage,
+        p_user_agent: device.user_agent,
+        p_device_type: device.device_type,
+        p_platform: device.platform,
+        p_screen_resolution: device.screen_resolution,
+        p_browser_language: device.browser_language
+      });
+      if (!error && data) {
+        serverRow = data;
+      }
+    } catch (_) {}
+
+    // Prioritas 2: Fallback upsert langsung tabel v3.visitors
+    if (!serverRow) {
+      try {
+        const db = api();
+        if (db) {
+          const { data, error } = await db.from('visitors').upsert({
+            visitor_key: visitorKey,
+            user_id: userId,
+            guest_id: guestId,
+            display_name: name,
+            role,
+            class_id: Number(classId),
+            last_page: lastPage,
+            is_visible: true,
+            visited_at: nowIso,
+            user_agent: device.user_agent,
+            device_type: device.device_type,
+            platform: device.platform,
+            screen_resolution: device.screen_resolution,
+            browser_language: device.browser_language
+          }, { onConflict: 'visitor_key' }).select().single();
+          if (!error && data) serverRow = data;
+        }
+      } catch (err) {
+        console.warn('logVisit direct upsert fallback failed:', err);
+      }
+    }
+
+    if (serverRow && serverRow.display_name) {
+      name = serverRow.display_name;
+      if (!userId && guestId) {
+        try {
+          localStorage.setItem('elearniz_v3_guest_name', serverRow.display_name);
+        } catch (_) {}
+      }
+      const updatedLocal = readLocalVisitors(classId);
+      const idx = updatedLocal.findIndex((v) => (v.visitor_key ? v.visitor_key === visitorKey : v.guest_id === guestId));
+      if (idx >= 0) {
+        updatedLocal[idx].display_name = serverRow.display_name;
+        writeLocalVisitors(classId, updatedLocal);
+      }
+    }
 
     try {
       localStorage.setItem(debounceKey, JSON.stringify({ page: lastPage, ts: now }));
     } catch (_) {}
+
+    return serverRow || localEntry;
   }
 
   async function listVisitors(classId) {
@@ -623,30 +691,36 @@
       if (db) {
         const { data, error } = await db
           .from('visitors')
-          .select('user_id,class_id,last_page,visited_at,is_visible,user_agent,device_type,platform,screen_resolution,browser_language')
+          .select('visitor_key,user_id,guest_id,display_name,role,class_id,last_page,visited_at,is_visible,user_agent,device_type,platform,screen_resolution,browser_language')
           .eq('class_id', Number(classId))
           .eq('is_visible', true)
           .order('visited_at', { ascending: false })
-          .limit(60);
+          .limit(80);
         if (error) throw error;
 
         if (Array.isArray(data) && data.length > 0) {
-          // Ambil semua user sekali, lalu map di memory (hindari join PostgREST
-          // yang rapuh terhadap nama relasi schema v3).
           const users = await listUsers(null);
           const byId = {};
           users.forEach((u) => { byId[String(u.id)] = u; });
 
           dbVisitors = data.map((v) => {
-            const u = byId[String(v.user_id)] || {};
+            const u = v.user_id ? byId[String(v.user_id)] || {} : null;
+            const displayName = u
+              ? (u.full_name || u.nickname || `Pengguna #${v.user_id}`)
+              : (v.display_name || 'Tamu');
+            const role = u ? (u.role || 'student') : (v.role || 'guest');
+            const avatarUrl = u ? (u.avatar_url || '') : '';
+
             return {
-              user_id: v.user_id,
+              visitor_key: v.visitor_key || (v.user_id ? `u:${v.user_id}` : `g:${v.guest_id}`),
+              user_id: v.user_id || null,
+              guest_id: v.guest_id || null,
               class_id: v.class_id,
-              display_name: u.full_name || u.nickname || `Pengguna #${v.user_id}`,
-              nickname: u.nickname || '',
-              full_name: u.full_name || '',
-              role: u.role || 'student',
-              avatar_url: u.avatar_url || '',
+              display_name: displayName,
+              nickname: u ? (u.nickname || '') : '',
+              full_name: u ? (u.full_name || '') : '',
+              role,
+              avatar_url: avatarUrl,
               last_page: v.last_page || '',
               visited_at: v.visited_at,
               user_agent: v.user_agent || '',
@@ -666,15 +740,13 @@
     const merged = [];
     const seen = new Set();
     const push = (v) => {
-      const name = String(v.display_name || '').trim();
-      if (!name) return;
-      const key = v.user_id ? `u:${v.user_id}` : `n:${name.toLowerCase()}`;
-      if (seen.has(key)) return;
+      const key = v.visitor_key || (v.user_id ? `u:${v.user_id}` : (v.guest_id ? `g:${v.guest_id}` : `n:${String(v.display_name || '').toLowerCase()}`));
+      if (!key || seen.has(key)) return;
       seen.add(key);
       merged.push(v);
     };
 
-    // DB dulu (data lengkap), lalu fallback lokal/tamu.
+    // DB dulu (data lengkap dan akurat di seluruh device), lalu fallback lokal
     dbVisitors.forEach(push);
     local.forEach(push);
     merged.sort((a, b) => new Date(b.visited_at || 0) - new Date(a.visited_at || 0));
@@ -693,7 +765,7 @@
       if (!db) return 0;
       const { count, error } = await db
         .from('visitors')
-        .select('user_id', { count: 'exact', head: true })
+        .select('visitor_key', { count: 'exact', head: true })
         .eq('class_id', Number(classId))
         .eq('is_visible', true);
       if (error) throw error;
@@ -707,13 +779,24 @@
   // Staff-only di UI (RLS v3 masih mengizinkan update visitors untuk anon,
   // karena itu dipakai untuk log kunjungan).
   async function clearVisitors(classId) {
-    const db = api();
-    if (!db) throw new Error('Koneksi Supabase tidak tersedia.');
-    const { error } = await db
-      .from('visitors')
-      .update({ is_visible: false })
-      .gte('user_id', 0);
-    if (error) throw error;
+    const client = getClient();
+    try {
+      if (client) {
+        await client.rpc('clear_visitors', { p_class_id: classId ? Number(classId) : null });
+      }
+    } catch (_) {
+      try {
+        const db = api();
+        if (db) {
+          let query = db.from('visitors').update({ is_visible: false }).eq('is_visible', true);
+          if (classId) query = query.eq('class_id', Number(classId));
+          await query;
+        }
+      } catch (err) {
+        console.warn('clearVisitors direct update failed:', err);
+      }
+    }
+
     try {
       if (classId) {
         writeLocalVisitors(classId, []);

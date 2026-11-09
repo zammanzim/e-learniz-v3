@@ -69,6 +69,7 @@
     if (value === 'super_admin' || value === 'superadmin') return 'is-super';
     if (value === 'class_admin' || value === 'admin') return 'is-admin';
     if (value === 'teacher' || value === 'guru' || value === 'staff') return 'is-teacher';
+    if (value === 'guest') return 'is-guest';
     return 'is-student';
   }
 
@@ -153,10 +154,43 @@
     return lines.length ? lines.join('') : '';
   }
 
+  function getOrGenerateGuestId() {
+    try {
+      let gid = localStorage.getItem('elearniz_v3_guest_id');
+      if (!gid) {
+        gid = 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+        localStorage.setItem('elearniz_v3_guest_id', gid);
+      }
+      return gid;
+    } catch (_) {
+      return 'g_' + Date.now().toString(36);
+    }
+  }
+
+  function getLocalGuestName() {
+    try {
+      return localStorage.getItem('elearniz_v3_guest_name') || 'Tamu';
+    } catch (_) {
+      return 'Tamu';
+    }
+  }
+
   function visitorKey(v) {
-    return v && v.user_id
-      ? `u:${v.user_id}`
-      : `n:${String((v && v.display_name) || '').trim().toLowerCase()}`;
+    if (!v) return '';
+    if (v.visitor_key) return v.visitor_key;
+    if (v.user_id) return `u:${v.user_id}`;
+    if (v.guest_id) return `g:${v.guest_id}`;
+    const name = String(v.display_name || '').trim();
+    return name ? `n:${name.toLowerCase()}` : '';
+  }
+
+  function isUserOnline(v) {
+    if (!v) return false;
+    const key = visitorKey(v);
+    if (key && onlineUsers.has(key)) return true;
+    if (v.user_id && (onlineUsers.has(String(v.user_id)) || onlineUsers.has(`u:${v.user_id}`))) return true;
+    if (v.guest_id && onlineUsers.has(`g:${v.guest_id}`)) return true;
+    return false;
   }
 
   /* ------------------------------------------------------------------------
@@ -269,12 +303,15 @@
       const state = presenceChannel.presenceState() || {};
       Object.keys(state).forEach((key) => {
         (state[key] || []).forEach((meta) => {
-          if (!meta || !meta.id) return;
-          onlineUsers.set(String(meta.id), {
-            id: meta.id,
-            display_name: meta.nickname || meta.full_name || 'Pengguna',
+          if (!meta) return;
+          const k = String(meta.id || key);
+          onlineUsers.set(k, {
+            id: k,
+            user_id: meta.user_id || null,
+            guest_id: meta.guest_id || null,
+            display_name: meta.nickname || (meta.role === 'guest' ? 'Tamu' : 'Pengguna'),
             nickname: meta.nickname || '',
-            role: meta.role || 'student',
+            role: meta.role || (meta.guest_id ? 'guest' : 'student'),
             class_id: meta.class_id,
             avatar_url: meta.avatar_url || '',
             online_at: meta.online_at || ''
@@ -287,12 +324,21 @@
 
   function setupPresence() {
     cleanupPresence();
-    if (!activeUser || activeUser.id === undefined || activeUser.id === null) return;
-
     const client = getClient();
     if (!client || typeof client.channel !== 'function') return;
 
-    const key = String(activeUser.id);
+    const guestId = activeUser ? null : getOrGenerateGuestId();
+    const key = activeUser && activeUser.id
+      ? `u:${activeUser.id}`
+      : `g:${guestId}`;
+
+    const nickname = activeUser
+      ? (activeUser.display_name || activeUser.full_name || activeUser.nickname || 'Pengguna')
+      : getLocalGuestName();
+
+    const role = activeUser ? (activeUser.role || 'student') : 'guest';
+    const classId = activeUser ? (activeUser.class_id || activeClassId) : activeClassId;
+
     presenceChannel = client.channel('elearniz-v3-online', {
       config: { presence: { key } }
     });
@@ -305,11 +351,13 @@
         if (status !== 'SUBSCRIBED' || !presenceChannel) return;
         try {
           await presenceChannel.track({
-            id: activeUser.id,
-            nickname: activeUser.display_name || activeUser.full_name || activeUser.nickname || 'Pengguna',
-            role: activeUser.role || 'student',
-            class_id: activeUser.class_id || activeClassId,
-            avatar_url: activeUser.avatar_url || '',
+            id: key,
+            user_id: activeUser ? activeUser.id : null,
+            guest_id: guestId,
+            nickname,
+            role,
+            class_id: classId,
+            avatar_url: activeUser ? (activeUser.avatar_url || '') : '',
             online_at: new Date().toISOString()
           });
         } catch (_) {}
@@ -322,14 +370,22 @@
   async function logCurrentVisit() {
     if (!activeClassId) return;
     try {
-      await window.ELearnizDB.logVisit(activeClassId, {
+      const guestId = activeUser ? null : getOrGenerateGuestId();
+      const guestName = activeUser ? null : getLocalGuestName();
+      const res = await window.ELearnizDB.logVisit(activeClassId, {
         userId: activeUser ? activeUser.id : null,
+        guestId,
         displayName: activeUser
           ? (activeUser.display_name || activeUser.full_name || activeUser.username || 'Pengguna')
-          : 'Tamu',
+          : (guestName !== 'Tamu' ? guestName : null),
         role: activeUser ? (activeUser.role || 'student') : 'guest',
         lastPage: pageNameFromHash()
       });
+      if (res && res.display_name && !activeUser) {
+        try {
+          localStorage.setItem('elearniz_v3_guest_name', res.display_name);
+        } catch (_) {}
+      }
     } catch (err) {
       // Data lokal sudah tersimpan di logVisit; DB bisa dicoba lagi nanti.
       console.warn('logVisit error:', err);
@@ -444,18 +500,20 @@
 
     cachedVisitors.forEach((v) => {
       const key = visitorKey(v);
-      if (seen.has(key)) return;
+      if (!key || seen.has(key)) return;
       seen.add(key);
       list.push(v);
     });
 
-    onlineUsers.forEach((u) => {
+    onlineUsers.forEach((u, k) => {
       if (target && u.class_id && Number(u.class_id) !== Number(target)) return;
-      const key = `u:${u.id}`;
-      if (seen.has(key)) return;
+      const key = k || (u.user_id ? `u:${u.user_id}` : (u.guest_id ? `g:${u.guest_id}` : ''));
+      if (!key || seen.has(key)) return;
       seen.add(key);
       list.unshift({
-        user_id: u.id,
+        visitor_key: key,
+        user_id: u.user_id || null,
+        guest_id: u.guest_id || null,
         class_id: u.class_id,
         display_name: u.display_name,
         nickname: u.nickname,
@@ -487,7 +545,7 @@
     const avatar = v.avatar_url
       ? (window.ELearnizDB.mediaUrl ? window.ELearnizDB.mediaUrl(v.avatar_url) : v.avatar_url)
       : '';
-    const online = Boolean(v.user_id && onlineUsers.has(String(v.user_id)));
+    const online = isUserOnline(v);
     const detail = deviceDetailHtml(v);
     const hasDevice = Boolean(detail);
     const key = visitorKey(v);

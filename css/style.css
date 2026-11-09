@@ -6736,6 +6736,8 @@ header#mainHeader { background: var(--bg-surface); }
 .visitor-role.is-super { background: var(--violet-soft); color: var(--violet-purple); border-color: transparent; }
 .visitor-role.is-admin { background: var(--sun-amber-soft); color: var(--sun-amber); border-color: transparent; }
 .visitor-role.is-teacher { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.visitor-role.is-guest { background: rgba(148, 163, 184, 0.14); color: #64748b; border-color: rgba(148, 163, 184, 0.25); }
+.visitor-role.is-student { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
 .visitor-sub {
   display: flex;
