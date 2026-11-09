@@ -64,6 +64,7 @@
     bindMateriToolbar();
     bindSubjectToolbar();
     bindAdminControls();
+    initViewerZoomGestures();
 
     // Hash Router Listener (Deep linking + tombol back browser)
     // pushState dipakai supaya back/forward terasa normal, sedangkan
@@ -1316,6 +1317,8 @@
     track.offsetHeight; // Force layout flush
     track.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
 
+    resetZoom(false);
+    updateZoomControlsVisibility();
     updateSlideNavButtons();
   }
 
@@ -1323,6 +1326,8 @@
     if (newIndex < 0 || newIndex >= currentViewerPhotos.length) return;
     const track = document.getElementById('detailSliderTrack');
     const currentIdxEl = document.getElementById('pvCurrentIdx');
+
+    resetZoom(false);
 
     currentViewerIndex = newIndex;
 
@@ -1335,6 +1340,7 @@
       currentIdxEl.textContent = String(currentViewerIndex + 1);
     }
 
+    updateZoomControlsVisibility();
     updateSlideNavButtons();
   }
 
@@ -1369,6 +1375,379 @@
     goToSlide(currentViewerIndex);
   }
 
+  /* ------------------------------------------------------------------------
+     IMAGE ZOOM & PAN LIGHTBOX CONTROLLER
+     ------------------------------------------------------------------------ */
+  let currentZoomScale = 1;
+  let zoomPanX = 0;
+  let zoomPanY = 0;
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 4;
+  const ZOOM_STEP = 0.5;
+  const DOUBLE_TAP_ZOOM = 2.5;
+
+  function isViewerZoomed() {
+    return currentZoomScale > 1.01;
+  }
+
+  function getActiveSlideImage() {
+    const track = document.getElementById('detailSliderTrack');
+    if (!track) return null;
+    const slide = track.querySelector(`.slider-slide[data-slide-index="${currentViewerIndex}"]`);
+    if (!slide) return null;
+    return slide.querySelector('img');
+  }
+
+  function updateZoomControlsVisibility() {
+    const controls = document.getElementById('viewerZoomControls');
+    if (!controls) return;
+    if (!currentViewerPhotos || currentViewerPhotos.length === 0) {
+      controls.style.display = 'none';
+      return;
+    }
+    const currentUrl = currentViewerPhotos[currentViewerIndex];
+    const meta = typeof classifyAttachment === 'function' ? classifyAttachment(currentUrl) : { type: 'image' };
+    if (meta && meta.type === 'image') {
+      controls.style.display = 'inline-flex';
+    } else {
+      controls.style.display = 'none';
+    }
+  }
+
+  function clampPan(img) {
+    if (!img || !isViewerZoomed()) {
+      zoomPanX = 0;
+      zoomPanY = 0;
+      return;
+    }
+
+    const wrapper = document.getElementById('detailSliderWrapper');
+    if (!wrapper) return;
+
+    const viewW = wrapper.clientWidth;
+    const viewH = wrapper.clientHeight;
+    const baseW = img.offsetWidth > 0 ? img.offsetWidth : (img.naturalWidth || viewW * 0.95);
+    const baseH = img.offsetHeight > 0 ? img.offsetHeight : (img.naturalHeight || viewH * 0.95);
+
+    const scaledW = baseW * currentZoomScale;
+    const scaledH = baseH * currentZoomScale;
+
+    const maxPanX = Math.max(0, (scaledW - viewW) / 2 + 30);
+    const maxPanY = Math.max(0, (scaledH - viewH) / 2 + 30);
+
+    zoomPanX = Math.max(-maxPanX, Math.min(maxPanX, zoomPanX));
+    zoomPanY = Math.max(-maxPanY, Math.min(maxPanY, zoomPanY));
+  }
+
+  function updateZoomUI(animate = true) {
+    const img = getActiveSlideImage();
+    const wrapper = document.getElementById('detailSliderWrapper');
+    const zoomText = document.getElementById('zoomPercentText');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+
+    clampPan(img);
+
+    if (img) {
+      if (animate) {
+        img.classList.remove('no-transition');
+      } else {
+        img.classList.add('no-transition');
+      }
+      img.style.transform = `translate3d(${zoomPanX}px, ${zoomPanY}px, 0) scale(${currentZoomScale})`;
+    }
+
+    if (zoomText) {
+      zoomText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+    }
+
+    if (zoomOutBtn) {
+      zoomOutBtn.disabled = currentZoomScale <= MIN_ZOOM + 0.01;
+    }
+    if (zoomInBtn) {
+      zoomInBtn.disabled = currentZoomScale >= MAX_ZOOM - 0.01;
+    }
+
+    if (wrapper) {
+      if (isViewerZoomed()) {
+        wrapper.classList.add('is-zoomed');
+      } else {
+        wrapper.classList.remove('is-zoomed', 'is-dragging');
+      }
+    }
+  }
+
+  function setZoom(newScale, focalX = null, focalY = null, animate = true) {
+    const img = getActiveSlideImage();
+    const wrapper = document.getElementById('detailSliderWrapper');
+    if (!img || !wrapper) return;
+
+    const prevScale = currentZoomScale;
+    const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(newScale.toFixed(2))));
+
+    if (clampedScale <= MIN_ZOOM + 0.01) {
+      currentZoomScale = 1;
+      zoomPanX = 0;
+      zoomPanY = 0;
+      updateZoomUI(animate);
+      return;
+    }
+
+    if (focalX !== null && focalY !== null && prevScale > 0) {
+      const rect = wrapper.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = focalX - cx;
+      const dy = focalY - cy;
+
+      const scaleRatio = clampedScale / prevScale;
+      zoomPanX = dx - (dx - zoomPanX) * scaleRatio;
+      zoomPanY = dy - (dy - zoomPanY) * scaleRatio;
+    }
+
+    currentZoomScale = clampedScale;
+    updateZoomUI(animate);
+  }
+
+  function resetZoom(animate = false) {
+    currentZoomScale = 1;
+    zoomPanX = 0;
+    zoomPanY = 0;
+
+    const track = document.getElementById('detailSliderTrack');
+    if (track) {
+      track.querySelectorAll('.slider-slide img').forEach((img) => {
+        img.classList.add('no-transition');
+        img.style.transform = '';
+      });
+    }
+
+    const wrapper = document.getElementById('detailSliderWrapper');
+    if (wrapper) {
+      wrapper.classList.remove('is-zoomed', 'is-dragging');
+    }
+
+    const zoomText = document.getElementById('zoomPercentText');
+    if (zoomText) zoomText.textContent = '100%';
+
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    if (zoomOutBtn) zoomOutBtn.disabled = true;
+
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    if (zoomInBtn) zoomInBtn.disabled = false;
+  }
+
+  function initViewerZoomGestures() {
+    const wrapper = document.getElementById('detailSliderWrapper');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    if (!wrapper) return;
+
+    // Zoom Buttons
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
+      });
+    }
+
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setZoom(currentZoomScale - ZOOM_STEP, null, null, true);
+      });
+    }
+
+    if (zoomResetBtn) {
+      zoomResetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isViewerZoomed()) {
+          resetZoom(true);
+        } else {
+          setZoom(DOUBLE_TAP_ZOOM, null, null, true);
+        }
+      });
+    }
+
+    // Desktop Mouse Wheel Zoom
+    wrapper.addEventListener('wheel', (e) => {
+      const modal = document.getElementById('cardDetailModal');
+      if (!modal || !modal.classList.contains('is-open')) return;
+      const img = getActiveSlideImage();
+      if (!img) return;
+
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
+      const targetScale = currentZoomScale * zoomFactor;
+      setZoom(targetScale, e.clientX, e.clientY, false);
+    }, { passive: false });
+
+    // Desktop Double Click Toggle
+    wrapper.addEventListener('dblclick', (e) => {
+      if (e.target.closest('#viewerZoomControls, #sliderNavBtns, #photoCounterTag, #toggleInfoBtn, .close-detail-btn')) return;
+      const img = getActiveSlideImage();
+      if (!img) return;
+      e.preventDefault();
+      if (isViewerZoomed()) {
+        resetZoom(true);
+      } else {
+        setZoom(DOUBLE_TAP_ZOOM, e.clientX, e.clientY, true);
+      }
+    });
+
+    // Desktop Mouse Drag / Pan
+    let isMousePanning = false;
+    let mouseStartX = 0;
+    let mouseStartY = 0;
+    let mouseStartPanX = 0;
+    let mouseStartPanY = 0;
+
+    wrapper.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (!isViewerZoomed()) return;
+      if (e.target.closest('#viewerZoomControls, #sliderNavBtns, #photoCounterTag, #toggleInfoBtn, .close-detail-btn')) return;
+
+      isMousePanning = true;
+      mouseStartX = e.clientX;
+      mouseStartY = e.clientY;
+      mouseStartPanX = zoomPanX;
+      mouseStartPanY = zoomPanY;
+      wrapper.classList.add('is-dragging');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isMousePanning) return;
+      const dx = e.clientX - mouseStartX;
+      const dy = e.clientY - mouseStartY;
+      zoomPanX = mouseStartPanX + dx;
+      zoomPanY = mouseStartPanY + dy;
+      updateZoomUI(false);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!isMousePanning) return;
+      isMousePanning = false;
+      if (wrapper) wrapper.classList.remove('is-dragging');
+      updateZoomUI(true);
+    });
+
+    // Mobile Touch Gestures: Pinch-to-zoom, 1-finger pan, and double-tap
+    let isTouchPanning = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+
+    let isPinching = false;
+    let initialPinchDist = 0;
+    let initialPinchScale = 1;
+
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
+    function getTouchDistance(t1, t2) {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.hypot(dx, dy);
+    }
+
+    function getTouchCenter(t1, t2) {
+      return {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+    }
+
+    wrapper.addEventListener('touchstart', (e) => {
+      const modal = document.getElementById('cardDetailModal');
+      if (!modal || !modal.classList.contains('is-open')) return;
+      if (e.target.closest('#viewerZoomControls, #sliderNavBtns, #photoCounterTag, #toggleInfoBtn, .close-detail-btn')) return;
+
+      const img = getActiveSlideImage();
+      if (!img) return;
+
+      if (e.touches.length === 2) {
+        // 2-finger pinch start
+        isPinching = true;
+        isTouchPanning = false;
+        initialPinchDist = getTouchDistance(e.touches[0], e.touches[1]);
+        initialPinchScale = currentZoomScale;
+      } else if (e.touches.length === 1) {
+        // Double tap detection
+        const now = Date.now();
+        const touch = e.touches[0];
+        const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+
+        if (now - lastTapTime < 320 && dist < 35) {
+          lastTapTime = 0;
+          if (isViewerZoomed()) {
+            resetZoom(true);
+          } else {
+            setZoom(DOUBLE_TAP_ZOOM, touch.clientX, touch.clientY, true);
+          }
+          isTouchPanning = false;
+          return;
+        }
+        lastTapTime = now;
+        lastTapX = touch.clientX;
+        lastTapY = touch.clientY;
+
+        if (isViewerZoomed()) {
+          isTouchPanning = true;
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          touchStartPanX = zoomPanX;
+          touchStartPanY = zoomPanY;
+          wrapper.classList.add('is-dragging');
+        }
+      }
+    }, { passive: true });
+
+    wrapper.addEventListener('touchmove', (e) => {
+      if (isPinching && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const dist = getTouchDistance(e.touches[0], e.touches[1]);
+        if (initialPinchDist > 0) {
+          const factor = dist / initialPinchDist;
+          const targetScale = initialPinchScale * factor;
+          const center = getTouchCenter(e.touches[0], e.touches[1]);
+          setZoom(targetScale, center.x, center.y, false);
+        }
+      } else if (isTouchPanning && e.touches.length === 1 && isViewerZoomed()) {
+        if (e.cancelable) e.preventDefault();
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+        zoomPanX = touchStartPanX + dx;
+        zoomPanY = touchStartPanY + dy;
+        updateZoomUI(false);
+      }
+    }, { passive: false });
+
+    const handleTouchEnd = () => {
+      if (isPinching) {
+        isPinching = false;
+        if (currentZoomScale < 1.05) {
+          resetZoom(true);
+        } else {
+          updateZoomUI(true);
+        }
+      }
+      if (isTouchPanning) {
+        isTouchPanning = false;
+        if (wrapper) wrapper.classList.remove('is-dragging');
+        updateZoomUI(true);
+      }
+    };
+
+    wrapper.addEventListener('touchend', handleTouchEnd, { passive: true });
+    wrapper.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+  }
+
   // Interactive touch swipe gesture for detail photo slider (60fps drag & snap)
   (function initPhotoSliderSwipe() {
     let touchStartX = 0;
@@ -1381,8 +1760,9 @@
       const modal = document.getElementById('cardDetailModal');
       if (!modal || !modal.classList.contains('is-open')) return;
       if (!e.target.closest('#detailSliderWrapper')) return;
-      if (e.target.closest('.modern-slider-arrow, .slider-dot, .modern-floating-info-pill, .photo-counter-pill, .close-detail-btn')) return;
+      if (e.target.closest('.modern-slider-arrow, .slider-dot, .modern-floating-info-pill, .photo-counter-pill, .close-detail-btn, .viewer-zoom-controls')) return;
       if (currentViewerPhotos.length <= 1) return;
+      if (e.touches.length > 1 || isViewerZoomed()) return;
 
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
@@ -1396,6 +1776,10 @@
 
     document.addEventListener('touchmove', (e) => {
       if (!isSwiping || currentViewerPhotos.length <= 1) return;
+      if (e.touches.length > 1 || isViewerZoomed()) {
+        isSwiping = false;
+        return;
+      }
       const x = e.touches[0].clientX;
       const y = e.touches[0].clientY;
       const dx = x - touchStartX;
@@ -1441,16 +1825,23 @@
     }, { passive: true });
   })();
 
-  // Keyboard navigation for photo slider
+  // Keyboard navigation for photo slider & image zoom
   document.addEventListener('keydown', (e) => {
     const modal = document.getElementById('cardDetailModal');
     if (!modal || !modal.classList.contains('is-open')) return;
-    if (currentViewerPhotos.length <= 1) return;
 
-    if (e.key === 'ArrowRight') {
+    if (e.key === 'ArrowRight' && currentViewerPhotos.length > 1) {
       nextSlide();
-    } else if (e.key === 'ArrowLeft') {
+    } else if (e.key === 'ArrowLeft' && currentViewerPhotos.length > 1) {
       prevSlide();
+    } else if (e.key === '+' || e.key === '=') {
+      const img = getActiveSlideImage();
+      if (img) setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
+    } else if (e.key === '-' || e.key === '_') {
+      const img = getActiveSlideImage();
+      if (img) setZoom(currentZoomScale - ZOOM_STEP, null, null, true);
+    } else if (e.key === '0') {
+      resetZoom(true);
     }
   });
 
@@ -1743,6 +2134,7 @@
 
     const closeObserver = new MutationObserver(() => {
       if (!modal.classList.contains('is-open')) {
+        resetZoom(false);
         if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
         detailBox.classList.remove('controls-hidden');
         if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
