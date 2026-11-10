@@ -1508,10 +1508,19 @@
   let currentZoomScale = 1;
   let zoomPanX = 0;
   let zoomPanY = 0;
-  const MIN_ZOOM = 1;
-  const MAX_ZOOM = 4;
-  const ZOOM_STEP = 0.5;
-  const DOUBLE_TAP_ZOOM = 2.5;
+  /* ==========================================================================
+     PENGATURAN ZOOM & SENSITIVITAS (Bisa diubah-ubah sendiri di sini)
+     ========================================================================== */
+  const MIN_ZOOM = 1;                     // Zoom minimum (1 = 100%)
+  const MAX_ZOOM = 4;                     // Zoom maksimum (4 = 400%)
+  const ZOOM_STEP = 0.25;                 // Langkah tombol +/- (sebelumnya 0.5)
+  const DOUBLE_TAP_ZOOM = 2.0;            // Skala zoom saat klik ganda (sebelumnya 2.5)
+
+  // Sensitivitas scroll mouse & pinch touchpad desktop:
+  // Nilai lebih kecil = makin halus & tidak agresif pergerakannya.
+  const DESKTOP_WHEEL_ZOOM_IN = 1.08;     // Faktor zoom-in scroll mouse (sebelumnya 1.25)
+  const DESKTOP_WHEEL_ZOOM_OUT = 0.92;    // Faktor zoom-out scroll mouse (sebelumnya 0.80)
+  const DESKTOP_PINCH_SENSITIVITY = 0.0035; // Kecepatan pinch trackpad/touchpad laptop
 
   function isViewerZoomed() {
     return currentZoomScale > 1.01;
@@ -1776,7 +1785,7 @@
       });
     }
 
-    // Desktop Mouse Wheel Zoom
+    // Desktop Mouse Wheel & Trackpad Pinch Zoom
     wrapper.addEventListener('wheel', (e) => {
       const modal = document.getElementById('cardDetailModal');
       if (!modal || !modal.classList.contains('is-open')) return;
@@ -1785,8 +1794,19 @@
 
       e.preventDefault();
       wakeControls();
-      const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
-      const targetScale = currentZoomScale * zoomFactor;
+
+      let targetScale;
+      // Deteksi Trackpad Pinch (pada browser desktop, pinch touchpad memicu wheel dengan e.ctrlKey = true)
+      if (e.ctrlKey) {
+        // Pinch touchpad/trackpad: skalakan proporsional terhadap deltaY agar sangat halus
+        const pinchFactor = Math.exp(-e.deltaY * DESKTOP_PINCH_SENSITIVITY);
+        targetScale = currentZoomScale * pinchFactor;
+      } else {
+        // Scroll wheel mouse biasa: gunakan faktor zoom halus yang tidak agresif
+        const zoomFactor = e.deltaY < 0 ? DESKTOP_WHEEL_ZOOM_IN : DESKTOP_WHEEL_ZOOM_OUT;
+        targetScale = currentZoomScale * zoomFactor;
+      }
+
       setZoom(targetScale, e.clientX, e.clientY, false);
     }, { passive: false });
 
