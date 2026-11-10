@@ -1513,14 +1513,15 @@
      ========================================================================== */
   const MIN_ZOOM = 1;                     // Zoom minimum (1 = 100%)
   const MAX_ZOOM = 4;                     // Zoom maksimum (4 = 400%)
-  const ZOOM_STEP = 0.25;                 // Langkah tombol +/- (sebelumnya 0.5)
-  const DOUBLE_TAP_ZOOM = 2.0;            // Skala zoom saat klik ganda (sebelumnya 2.5)
+  const ZOOM_STEP = 0.33;                 // Langkah tombol +/- (naik 30% dari 0.25)
+  const DOUBLE_TAP_ZOOM = 2.0;            // Skala zoom saat klik ganda
 
   // Sensitivitas scroll mouse & pinch touchpad desktop:
-  // Nilai lebih kecil = makin halus & tidak agresif pergerakannya.
-  const DESKTOP_WHEEL_ZOOM_IN = 1.08;     // Faktor zoom-in scroll mouse (sebelumnya 1.25)
-  const DESKTOP_WHEEL_ZOOM_OUT = 0.92;    // Faktor zoom-out scroll mouse (sebelumnya 0.80)
-  const DESKTOP_PINCH_SENSITIVITY = 0.0035; // Kecepatan pinch trackpad/touchpad laptop
+  // Nilai lebih besar = pergerakan zoom makin cepat/responsif.
+  // Nilai lebih kecil mendekati 1.0 = makin pelan/halus.
+  const DESKTOP_WHEEL_ZOOM_IN = 1.11;     // Faktor zoom-in scroll mouse per tick (naik ~30% dari 1.08)
+  const DESKTOP_WHEEL_ZOOM_OUT = 0.90;    // Faktor zoom-out scroll mouse per tick (naik ~30% dari 0.92)
+  const DESKTOP_PINCH_SENSITIVITY = 0.0046; // Kecepatan pinch trackpad/touchpad laptop (naik 30% dari 0.0035)
 
   function isViewerZoomed() {
     return currentZoomScale > 1.01;
@@ -2237,11 +2238,12 @@
     if (infoSection) {
       if (isMobile && photos.length > 0) {
         infoSection.classList.add('hidden-mobile');
-        infoSection.classList.remove('full-screen');
+        infoSection.classList.remove('full-screen', 'is-info-hidden');
         if (toggleInfoBtn) toggleInfoBtn.style.display = 'flex';
       } else {
-        infoSection.classList.remove('hidden-mobile', 'full-screen');
+        infoSection.classList.remove('hidden-mobile', 'full-screen', 'is-info-hidden', 'is-drawer-open');
         if (toggleInfoBtn) toggleInfoBtn.style.display = 'none';
+        detailBox.classList.remove('info-collapsed');
       }
     }
 
@@ -2448,7 +2450,8 @@
       if (infoSection && !infoSection.classList.contains('hidden-mobile') && window.innerWidth <= 768) {
         return;
       }
-      if (infoSection && infoSection.classList.contains('is-drawer-open') && window.innerWidth > 768) {
+      // Don't auto-hide if user is viewing the left info section on desktop
+      if (infoSection && !infoSection.classList.contains('is-info-hidden') && window.innerWidth > 768) {
         return;
       }
       // If user is zoomed in on desktop, keep top header visible so zoom & close buttons remain usable
@@ -2481,9 +2484,9 @@
       if (!modal.classList.contains('is-open')) {
         resetZoom(false);
         if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
-        detailBox.classList.remove('controls-hidden');
+        detailBox.classList.remove('controls-hidden', 'info-collapsed');
         if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
-        if (infoSection) infoSection.classList.remove('is-drawer-open');
+        if (infoSection) infoSection.classList.remove('is-info-hidden', 'is-drawer-open');
         const waToggleInfoBtn = document.getElementById('waToggleInfoBtn');
         if (waToggleInfoBtn) waToggleInfoBtn.classList.remove('is-active');
         interactionEvents.forEach((ev) => {
@@ -2685,77 +2688,24 @@
       if (waTopHeader) waTopHeader.style.display = 'none';
     }
 
-    // WhatsApp Desktop Centered Caption Bar
+    // WhatsApp Desktop Centered Caption Bar (Disabled per user request: section selengkapnya di kiri)
     const waCaptionBar = document.getElementById('waCaptionBar');
-    const waCaptionText = document.getElementById('waCaptionText');
-    const waCaptionTaskBtn = document.getElementById('waCaptionTaskBtn');
-
-    const updateWaTaskBtn = (done) => {
-      if (!waCaptionTaskBtn) return;
-      waCaptionTaskBtn.className = `wa-caption-task-btn ${done ? 'is-completed' : ''}`;
-      waCaptionTaskBtn.innerHTML = `
-        <i class="fa-solid ${done ? 'fa-rotate-left' : 'fa-check'}"></i>
-        <span>${done ? 'Selesai' : 'Tandai Selesai'}</span>
-      `;
-    };
-
-    const captionContent = (card.content || '').trim() || (card.title || '').trim();
     if (waCaptionBar) {
-      if (photos.length > 0 && (captionContent || card.has_task)) {
-        waCaptionBar.style.display = 'block';
-        if (waCaptionText) {
-          waCaptionText.textContent = captionContent || (card.big_title || '');
-          waCaptionText.style.display = captionContent ? 'block' : 'none';
-        }
-        if (waCaptionTaskBtn) {
-          if (card.has_task) {
-            waCaptionTaskBtn.style.display = 'inline-flex';
-            updateWaTaskBtn(isDone);
-            waCaptionTaskBtn.onclick = async (e) => {
-              if (e && e.stopPropagation) e.stopPropagation();
-              await handleToggleTaskProgress(card.id);
-              const nextDone = state.completedTaskIds.has(String(card.id));
-              updateWaTaskBtn(nextDone);
-
-              // Sync drawer task card and button
-              const modalBtn = infoContent.querySelector('#modalToggleTaskBtn');
-              if (modalBtn) {
-                modalBtn.className = `detail-task-cta-btn ${nextDone ? 'completed-btn' : 'action-btn'}`;
-                modalBtn.innerHTML = `
-                  <i class="fa-solid ${nextDone ? 'fa-rotate-left' : 'fa-check'}"></i>
-                  <span>${nextDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
-                `;
-              }
-              const taskCard = infoContent.querySelector('.detail-task-card');
-              if (taskCard) {
-                taskCard.className = `detail-task-card ${nextDone ? 'is-completed' : 'is-pending'}`;
-                const iconCircle = taskCard.querySelector('.detail-task-icon-circle i');
-                if (iconCircle) iconCircle.className = `fa-solid ${nextDone ? 'fa-circle-check' : 'fa-list-check'}`;
-                const title = taskCard.querySelector('.task-card-title');
-                if (title) title.textContent = nextDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas';
-                const caption = taskCard.querySelector('.task-card-caption');
-                if (caption) caption.textContent = nextDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.';
-              }
-            };
-          } else {
-            waCaptionTaskBtn.style.display = 'none';
-          }
-        }
-      } else {
-        waCaptionBar.style.display = 'none';
-      }
+      waCaptionBar.style.display = 'none';
     }
 
-    // WhatsApp Desktop Slide-in Drawer Toggle
+    // WhatsApp Desktop Left Info Section Toggle
     if (infoSection) {
-      infoSection.classList.remove('is-drawer-open');
+      infoSection.classList.remove('is-info-hidden', 'is-drawer-open');
+      detailBox.classList.remove('info-collapsed');
       if (waToggleInfoBtn) {
-        waToggleInfoBtn.classList.remove('is-active');
+        waToggleInfoBtn.classList.add('is-active');
         waToggleInfoBtn.onclick = (e) => {
           if (e && e.stopPropagation) e.stopPropagation();
-          const isOpen = infoSection.classList.toggle('is-drawer-open');
-          waToggleInfoBtn.classList.toggle('is-active', isOpen);
-          if (isOpen) {
+          const isHidden = infoSection.classList.toggle('is-info-hidden');
+          detailBox.classList.toggle('info-collapsed', isHidden);
+          waToggleInfoBtn.classList.toggle('is-active', !isHidden);
+          if (!isHidden) {
             showViewerControls();
             if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
           } else {
@@ -2766,7 +2716,8 @@
       if (drawerCloseBtn) {
         drawerCloseBtn.onclick = (e) => {
           if (e && e.stopPropagation) e.stopPropagation();
-          infoSection.classList.remove('is-drawer-open');
+          infoSection.classList.add('is-info-hidden');
+          detailBox.classList.add('info-collapsed');
           if (waToggleInfoBtn) waToggleInfoBtn.classList.remove('is-active');
           restartViewerInactivityTimer();
         };

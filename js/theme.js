@@ -18,13 +18,14 @@
 
   const DEFAULT_SETTINGS = {
     mode: 'auto', // 'dark' | 'light' | 'auto' (Default: otomatis sistem)
-    version: 2,
+    version: 3,
+    lang: 'id',   // 'id' | 'en'
     accent: 'blue', // 'blue' | 'mint' | 'violet' | 'amber' | 'rose' | 'cyber' | 'ruby' | 'custom'
     customAccentHex: '#2563eb',
     bgStyleDark: 'midnight', // 'midnight' | 'oled' | 'slate' | 'charcoal'
     bgStyleLight: 'breeze',   // 'breeze' | 'snow' | 'latte' | 'mint'
     radius: 'playful', // 'playful' | 'minimal' | 'pill'
-    font: 'plus-jakarta', // 'plus-jakarta' | 'fredoka' | 'jetbrains'
+    font: 'plus-jakarta', // 'plus-jakarta' | 'poppins' | 'quicksand' | 'fredoka' | 'outfit' | 'lexend' | 'inter' | 'jetbrains'
     ambientGlow: true,
     density: 'comfortable' // 'comfortable' | 'compact'
   };
@@ -349,15 +350,40 @@
       desc: 'Modern, proporsional & terbaca jelas',
       fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
     },
+    'poppins': {
+      name: 'Poppins',
+      desc: 'Geometris rapi, populer & elegan',
+      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif"
+    },
+    'quicksand': {
+      name: 'Quicksand',
+      desc: 'Membulat lembut, hangat & estetik',
+      fontFamily: "'Quicksand', sans-serif"
+    },
     'fredoka': {
       name: 'Fredoka Playful',
       desc: 'Ceria, santai & ramah anak muda',
       fontFamily: "'Fredoka', 'Plus Jakarta Sans', sans-serif"
     },
+    'outfit': {
+      name: 'Outfit Modern',
+      desc: 'Futuristik, minimalis & tajam',
+      fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif"
+    },
+    'lexend': {
+      name: 'Lexend Reader',
+      desc: 'Didesain khusus kenyamanan membaca',
+      fontFamily: "'Lexend', -apple-system, BlinkMacSystemFont, sans-serif"
+    },
+    'inter': {
+      name: 'Inter Clean',
+      desc: 'Standar aplikasi global, jernih & netral',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    },
     'jetbrains': {
       name: 'JetBrains Mono',
       desc: 'Techy monospace, khas anak koding RPL',
-      fontFamily: "'JetBrains Mono', 'Plus Jakarta Sans', monospace"
+      fontFamily: "'JetBrains Mono', monospace"
     }
   };
 
@@ -431,6 +457,13 @@
     };
   }
 
+  function t(key, fallback) {
+    if (window.ELearnizI18n && typeof window.ELearnizI18n.t === 'function') {
+      return window.ELearnizI18n.t(key, fallback);
+    }
+    return fallback !== undefined ? fallback : key;
+  }
+
   /* ------------------------------------------------------------------------
      STATE MANAGEMENT (Load, Save, Resolve)
      ------------------------------------------------------------------------ */
@@ -439,18 +472,19 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Migrasi v1 -> v2: jika versi lama belum memiliki version 2, defaultkan ke mode: 'auto'
-        if (!parsed.version || parsed.version < 2) {
-          parsed.mode = 'auto';
-          parsed.version = 2;
+        if (!parsed.version || parsed.version < 3) {
+          parsed.version = 3;
+          if (!parsed.lang) {
+            parsed.lang = (window.ELearnizI18n && window.ELearnizI18n.getLanguage()) || 'id';
+          }
           saveSettings(parsed);
         }
         return { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (_) {}
 
-    // Pengguna baru murni default ke otomatis sistem ('auto')
-    return { ...DEFAULT_SETTINGS, mode: 'auto', version: 2 };
+    const initLang = (window.ELearnizI18n && window.ELearnizI18n.getLanguage()) || 'id';
+    return { ...DEFAULT_SETTINGS, mode: 'auto', lang: initLang, version: 3 };
   }
 
   function saveSettings(settings) {
@@ -825,13 +859,43 @@
             </div>
           </div>
 
+          <!-- Section: Pilihan Bahasa (Language) -->
+          <div class="theme-panel-card">
+            <div class="tpc-card-header">
+              <div class="tpc-header-icon"><i class="fa-solid fa-language"></i></div>
+              <div>
+                <h3>${t('theme_lang_title', 'Pilihan Bahasa')}</h3>
+                <p>${t('theme_lang_desc', 'Pilih bahasa antarmuka untuk portal E-Learniz.')}</p>
+              </div>
+            </div>
+            <div class="theme-lang-grid">
+              <button type="button" class="theme-lang-btn ${(s.lang || 'id') === 'id' ? 'active' : ''}" data-lang="id">
+                <span class="tlb-flag">🇮🇩</span>
+                <div class="tlb-meta">
+                  <strong>${t('theme_lang_id', 'Bahasa Indonesia')}</strong>
+                  <small>${t('theme_lang_id_desc', 'Bahasa default sistem')}</small>
+                </div>
+                ${(s.lang || 'id') === 'id' ? '<i class="fa-solid fa-circle-check tlb-check"></i>' : ''}
+              </button>
+
+              <button type="button" class="theme-lang-btn ${s.lang === 'en' ? 'active' : ''}" data-lang="en">
+                <span class="tlb-flag">🇬🇧</span>
+                <div class="tlb-meta">
+                  <strong>${t('theme_lang_en', 'English')}</strong>
+                  <small>${t('theme_lang_en_desc', 'English interface')}</small>
+                </div>
+                ${s.lang === 'en' ? '<i class="fa-solid fa-circle-check tlb-check"></i>' : ''}
+              </button>
+            </div>
+          </div>
+
           <!-- Section 2: Palet Warna Aksen Utama -->
           <div class="theme-panel-card">
             <div class="tpc-card-header">
               <div class="tpc-header-icon"><i class="fa-solid fa-droplet"></i></div>
               <div>
-                <h3>Warna Aksen Utama</h3>
-                <p>Warna identitas untuk tombol, sorotan menu, ikon header, dan indikator tugas.</p>
+                <h3>${t('theme_accent_title', 'Warna Aksen Utama')}</h3>
+                <p>${t('theme_accent_desc', 'Warna identitas untuk tombol, sorotan menu, ikon header, dan indikator tugas.')}</p>
               </div>
             </div>
 
@@ -850,29 +914,17 @@
                   </button>
                 `;
               }).join('')}
-            </div>
 
-            <!-- Custom Hex Color Box -->
-            <div class="theme-custom-accent-box ${s.accent === 'custom' ? 'is-active' : ''}">
-              <div class="tca-head">
-                <i class="fa-solid fa-eye-dropper"></i>
-                <div>
-                  <strong>Pilih Warna Kustom Sendiri</strong>
-                  <p>Pilih warna apa pun lewat pemilih warna atau ketik kode HEX.</p>
+              <!-- Custom Accent Button: Identik dengan tombol aksen lainnya, auto-apply instan tanpa form box -->
+              <button type="button" class="theme-accent-btn ${s.accent === 'custom' ? 'active' : ''}" id="btnCustomAccent" data-accent="custom" title="Klik untuk memilih warna bebas">
+                <span class="tab-color-dot" id="customColorDot" style="background: ${s.accent === 'custom' ? s.customAccentHex : 'conic-gradient(from 0deg, #f43f5e, #f59e0b, #10b981, #06b6d4, #2563eb, #8b5cf6, #f43f5e)'}; box-shadow: 0 0 10px ${s.accent === 'custom' ? s.customAccentHex + '66' : 'rgba(37,99,235,0.2)'};"></span>
+                <div class="tab-meta">
+                  <strong>${t('theme_custom_color_title', 'Pilih Sendiri')}</strong>
+                  <small id="customColorMetaText">${s.accent === 'custom' ? s.customAccentHex : t('theme_custom_color_desc', 'Warna Bebas / Kustom')}</small>
                 </div>
-              </div>
-              <div class="tca-controls">
-                <div class="tca-picker-wrap">
-                  <input type="color" id="customColorPicker" value="${esc(s.customAccentHex || '#2563eb')}" />
-                </div>
-                <div class="tca-input-wrap">
-                  <span class="tca-hash">#</span>
-                  <input type="text" id="customColorHexInput" value="${esc(String(s.customAccentHex || '#2563eb').replace(/^#/, ''))}" maxlength="6" placeholder="2563eb" />
-                </div>
-                <button type="button" class="btn-primary btn-apply-custom" id="btnApplyCustomColor">
-                  <i class="fa-solid fa-check"></i> Terapkan Warna
-                </button>
-              </div>
+                ${s.accent === 'custom' ? '<i class="fa-solid fa-circle-check tab-check"></i>' : '<i class="fa-solid fa-eye-dropper tab-check" style="opacity:0.55;"></i>'}
+                <input type="color" id="nativeCustomColorPicker" value="${esc(s.customAccentHex || '#2563eb')}" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" />
+              </button>
             </div>
           </div>
 

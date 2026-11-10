@@ -6252,10 +6252,11 @@ header#mainHeader {
     color: #ef4444;
   }
 
-  /* WhatsApp Centered Media Pane */
+  /* WhatsApp Centered Media Pane on Desktop */
   .glass-detail-box:not(.text-only-mode) .detail-media-section {
     flex: 1;
-    width: 100%;
+    width: calc(100vw - 390px);
+    margin-left: 390px;
     position: relative;
     background: #0b141a;
     display: flex;
@@ -6263,6 +6264,7 @@ header#mainHeader {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .glass-detail-box:not(.text-only-mode) .slider-slide img {
@@ -6300,79 +6302,17 @@ header#mainHeader {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
   }
 
-  /* WhatsApp Centered Caption Bar */
+  /* WhatsApp Centered Caption Bar (Disabled: user requested gausah ada caption inner) */
   .wa-caption-bar {
-    position: absolute;
-    bottom: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 82%;
-    z-index: 30;
-    pointer-events: auto;
-    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .wa-caption-inner {
-    background: rgba(17, 27, 33, 0.88);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 18px;
-    padding: 0.55rem 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.95rem;
-    max-width: 100%;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  }
-
-  .wa-caption-text {
-    color: #e9edef;
-    font-size: 0.92rem;
-    line-height: 1.45;
-    text-align: center;
-    max-height: 4.2rem;
-    overflow-y: auto;
-    word-break: break-word;
-  }
-
-  .wa-caption-task-btn {
-    border: none;
-    border-radius: 10px;
-    padding: 0.45rem 0.95rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-    background: #00a884;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 168, 132, 0.3);
-    transition: background 0.15s ease, transform 0.15s ease;
-  }
-
-  .wa-caption-task-btn:hover {
-    background: #02906f;
-    transform: translateY(-1px);
-  }
-
-  .wa-caption-task-btn:active {
-    transform: scale(0.96);
-  }
-
-  .wa-caption-task-btn.is-completed {
-    background: rgba(255, 255, 255, 0.12);
-    color: #8696a0;
-    box-shadow: none;
+    display: none !important;
   }
 
   /* WhatsApp Bottom Thumbnail Strip */
   .wa-thumb-strip {
     position: relative;
     height: 74px;
+    width: calc(100vw - 390px);
+    margin-left: 390px;
     background: #0b141a;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
@@ -6385,7 +6325,7 @@ header#mainHeader {
     overflow-y: hidden;
     scrollbar-width: thin;
     z-index: 35;
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
   }
 
   .wa-thumb-strip::-webkit-scrollbar {
@@ -6441,34 +6381,42 @@ header#mainHeader {
     box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
   }
 
-  /* Slide-in Detail Drawer for Desktop */
+  /* Section Selengkapnya di Kiri (Desktop) */
   .glass-detail-box:not(.text-only-mode) .detail-info-section {
     position: absolute;
     top: 60px;
-    right: 0;
+    left: 0;
+    right: auto;
     bottom: 0;
     width: 390px;
     max-width: 90vw;
     background: #111b21;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: none;
     border-top: none;
     z-index: 45;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: translate3d(105%, 0, 0);
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, visibility 0.28s;
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
-  }
-
-  .glass-detail-box:not(.text-only-mode) .detail-info-section.is-drawer-open {
     transform: translate3d(0, 0, 0);
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, visibility 0.28s;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
+  }
+
+  .glass-detail-box:not(.text-only-mode) .detail-info-section.is-info-hidden {
+    transform: translate3d(-105%, 0, 0);
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .glass-detail-box:not(.text-only-mode).info-collapsed .detail-media-section,
+  .glass-detail-box:not(.text-only-mode).info-collapsed .wa-thumb-strip {
+    width: 100vw !important;
+    margin-left: 0 !important;
   }
 
   .drawer-header-desktop {
@@ -6535,26 +6483,24 @@ header#mainHeader {
     pointer-events: none;
   }
 
-  .glass-detail-box:not(.text-only-mode).controls-hidden .wa-caption-bar {
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, 10px);
-  }
-
   .glass-detail-box:not(.text-only-mode).controls-hidden .slider-nav-container {
     opacity: 0;
     pointer-events: none;
   }
 
-  /* Zoom Mode (WhatsApp Web style: hide bottom thumbnail strip & caption bar, keep top header visible) */
-  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-thumb-strip {
+  /* Zoom Mode (WhatsApp Web style: hide left info section & thumbnail strip, expand media full width) */
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-info-section {
     display: none !important;
   }
 
-  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-caption-bar {
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transform: translate(-50%, 20px) !important;
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-media-section {
+    width: 100vw !important;
+    margin-left: 0 !important;
+    transition: none !important;
+  }
+
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-thumb-strip {
+    display: none !important;
   }
 
   .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header {
@@ -9069,10 +9015,69 @@ header#mainHeader { background: var(--bg-surface); }
   font-size: 0.85rem;
 }
 
+/* Language Grid */
+.theme-lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.theme-lang-btn {
+  background: var(--bg-subtle);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  cursor: pointer;
+  position: relative;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.theme-lang-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.theme-lang-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 14px var(--shadow-accent);
+}
+
+.tlb-flag {
+  font-size: 1.6rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tlb-meta strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.tlb-meta small {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tlb-check {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
 /* Fonts Grid */
 .theme-fonts-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 0.75rem;
 }
 
@@ -9327,8 +9332,13 @@ header#mainHeader { background: var(--bg-surface); }
   .theme-radius-btn small {
     display: none;
   }
-  .theme-fonts-grid {
+  .theme-lang-grid {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .theme-fonts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
   }
   .theme-extra-row {
     flex-direction: column;
