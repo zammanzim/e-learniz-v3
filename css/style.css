@@ -6545,6 +6545,27 @@ header#mainHeader {
     opacity: 0;
     pointer-events: none;
   }
+
+  /* Zoom Mode (WhatsApp Web style: hide bottom thumbnail strip & caption bar, keep top header visible) */
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-thumb-strip {
+    display: none !important;
+  }
+
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-caption-bar {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translate(-50%, 20px) !important;
+  }
+
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .slider-slide img {
+    max-height: calc(100vh - 85px);
+  }
 }
 
 /* ==========================================================================

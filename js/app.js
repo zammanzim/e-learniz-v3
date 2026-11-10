@@ -1617,6 +1617,16 @@
         wrapper.classList.remove('is-zoomed', 'is-dragging');
       }
     }
+
+    const detailBox = document.getElementById('cardDetailBox');
+    if (detailBox) {
+      if (isViewerZoomed()) {
+        detailBox.classList.add('is-viewer-zoomed');
+        detailBox.classList.remove('controls-hidden');
+      } else {
+        detailBox.classList.remove('is-viewer-zoomed');
+      }
+    }
   }
 
   function setZoom(newScale, focalX = null, focalY = null, animate = true) {
@@ -1686,6 +1696,11 @@
 
     const waZoomInBtn = document.getElementById('waZoomInBtn');
     if (waZoomInBtn) waZoomInBtn.disabled = false;
+
+    const detailBox = document.getElementById('cardDetailBox');
+    if (detailBox) {
+      detailBox.classList.remove('is-viewer-zoomed');
+    }
   }
 
   function initViewerZoomGestures() {
@@ -1699,10 +1714,16 @@
 
     if (!wrapper) return;
 
+    const wakeControls = () => {
+      const detailBox = document.getElementById('cardDetailBox');
+      if (detailBox) detailBox.classList.remove('controls-hidden');
+    };
+
     // Zoom Buttons
     if (zoomInBtn) {
       zoomInBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
       });
     }
@@ -1710,6 +1731,7 @@
     if (waZoomInBtn) {
       waZoomInBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
       });
     }
@@ -1717,6 +1739,7 @@
     if (zoomOutBtn) {
       zoomOutBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         setZoom(currentZoomScale - ZOOM_STEP, null, null, true);
       });
     }
@@ -1724,6 +1747,7 @@
     if (waZoomOutBtn) {
       waZoomOutBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         setZoom(currentZoomScale - ZOOM_STEP, null, null, true);
       });
     }
@@ -1731,6 +1755,7 @@
     if (zoomResetBtn) {
       zoomResetBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         if (isViewerZoomed()) {
           resetZoom(true);
         } else {
@@ -1742,6 +1767,7 @@
     if (waZoomResetBtn) {
       waZoomResetBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        wakeControls();
         if (isViewerZoomed()) {
           resetZoom(true);
         } else {
@@ -1758,6 +1784,7 @@
       if (!img) return;
 
       e.preventDefault();
+      wakeControls();
       const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
       const targetScale = currentZoomScale * zoomFactor;
       setZoom(targetScale, e.clientX, e.clientY, false);
@@ -1769,6 +1796,7 @@
       const img = getActiveSlideImage();
       if (!img) return;
       e.preventDefault();
+      wakeControls();
       if (isViewerZoomed()) {
         resetZoom(true);
       } else {
@@ -2401,6 +2429,10 @@
         return;
       }
       if (infoSection && infoSection.classList.contains('is-drawer-open') && window.innerWidth > 768) {
+        return;
+      }
+      // If user is zoomed in on desktop, keep top header visible so zoom & close buttons remain usable
+      if (isViewerZoomed() && window.innerWidth > 768) {
         return;
       }
       detailBox.classList.add('controls-hidden');
