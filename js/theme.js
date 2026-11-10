@@ -1072,7 +1072,22 @@
       });
     }
 
-    // 2. Mode Buttons
+    // 2. Language Buttons
+    container.querySelectorAll('button[data-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang');
+        updateSettings({ lang });
+        if (window.ELearnizI18n) {
+          window.ELearnizI18n.setLanguage(lang);
+        }
+        renderView();
+        if (window.ELearnizUI && window.ELearnizUI.toast) {
+          window.ELearnizUI.toast(lang === 'en' ? 'Language switched to English! 🇬🇧' : 'Bahasa diubah ke Bahasa Indonesia! 🇮🇩', 'success');
+        }
+      });
+    });
+
+    // 3. Mode Buttons
     container.querySelectorAll('button[data-mode]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const mode = btn.getAttribute('data-mode');
@@ -1086,8 +1101,8 @@
       });
     });
 
-    // 3. Accent Buttons
-    container.querySelectorAll('button[data-accent]').forEach((btn) => {
+    // 4. Preset Accent Buttons
+    container.querySelectorAll('button[data-accent]:not(#btnCustomAccent)').forEach((btn) => {
       btn.addEventListener('click', () => {
         const accent = btn.getAttribute('data-accent');
         updateSettings({ accent });
@@ -1097,43 +1112,30 @@
       });
     });
 
-    // 4. Custom Accent Picker & Hex Input
-    const colorPicker = container.querySelector('#customColorPicker');
-    const hexInput = container.querySelector('#customColorHexInput');
-    const applyCustomBtn = container.querySelector('#btnApplyCustomColor');
-
-    if (colorPicker && hexInput) {
-      colorPicker.addEventListener('input', (e) => {
-        const val = e.target.value;
-        hexInput.value = val.replace(/^#/, '');
-        updateSettings({ accent: 'custom', customAccentHex: val });
-      });
-
-      hexInput.addEventListener('input', (e) => {
-        let val = e.target.value.trim().replace(/^#/, '');
-        if (val.length === 6) {
-          colorPicker.value = '#' + val;
-          updateSettings({ accent: 'custom', customAccentHex: '#' + val });
+    // 5. Custom Accent Button (One-click trigger native color picker & auto-apply)
+    const customAccentBtn = container.querySelector('#btnCustomAccent');
+    const nativeColorPicker = container.querySelector('#nativeCustomColorPicker');
+    if (customAccentBtn && nativeColorPicker) {
+      customAccentBtn.addEventListener('click', (e) => {
+        if (e.target !== nativeColorPicker) {
+          if (typeof nativeColorPicker.showPicker === 'function') {
+            nativeColorPicker.showPicker();
+          } else {
+            nativeColorPicker.click();
+          }
         }
       });
 
-      if (applyCustomBtn) {
-        applyCustomBtn.addEventListener('click', () => {
-          let val = hexInput.value.trim().replace(/^#/, '');
-          if (!/^[0-9a-fA-F]{3,6}$/.test(val)) {
-            if (window.ELearnizUI && window.ELearnizUI.toast) window.ELearnizUI.toast('Masukkan kode HEX yang valid (contoh: 2563eb)', 'error');
-            return;
-          }
-          if (val.length === 3) {
-            val = val.split('').map((c) => c + c).join('');
-          }
-          const fullHex = '#' + val;
-          colorPicker.value = fullHex;
-          updateSettings({ accent: 'custom', customAccentHex: fullHex });
+      const applyCustomColor = (e) => {
+        const val = e.target.value;
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+          updateSettings({ accent: 'custom', customAccentHex: val });
           renderView();
-          if (window.ELearnizUI && window.ELearnizUI.toast) window.ELearnizUI.toast(`Warna kustom ${fullHex} berhasil diterapkan! 🎨`, 'success');
-        });
-      }
+        }
+      };
+
+      nativeColorPicker.addEventListener('input', applyCustomColor);
+      nativeColorPicker.addEventListener('change', applyCustomColor);
     }
 
     // 5. Background Style Buttons

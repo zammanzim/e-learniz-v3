@@ -159,6 +159,12 @@
     renderHeaderAndAuthUI();
     renderAllViews();
 
+    window.addEventListener('elearniz:languagechange', () => {
+      if (window.ELearnizI18n) window.ELearnizI18n.applyToDOM();
+      renderHeaderAndAuthUI();
+      renderAllViews();
+    });
+
     window.ELearnizVisitor.initVisitorCounter(classId, state.currentUser);
   }
 
@@ -180,8 +186,9 @@
     const loginBtn = document.getElementById('dropdownLoginBtn');
     const logoutBtn = document.getElementById('dropdownLogoutBtn');
 
-    if (greetingEl) greetingEl.textContent = `Haii, ${nickname}`;
-    if (welcomeTextEl) welcomeTextEl.textContent = `Haii, ${nickname}! 👋`;
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    if (greetingEl) greetingEl.textContent = `${t('header_greeting_prefix', 'Haii, ')}${nickname}`;
+    if (welcomeTextEl) welcomeTextEl.textContent = `${t('header_greeting_prefix', 'Haii, ')}${nickname}! 👋`;
     if (avatarEl) avatarEl.textContent = nickname.charAt(0).toUpperCase();
     if (ddName) ddName.textContent = fullName;
     if (ddRole) {
@@ -2776,12 +2783,8 @@
 
     if (fabMainBtn) {
       fabMainBtn.addEventListener('click', () => {
-        // Klik FAB langsung membuka form tambah tugas jika di view tugas, atau materi jika di view lain
-        if (state.activeView === 'tugas') {
-          openCreateCardModal('subject', true);
-        } else {
-          openCreateCardModal('subject', false);
-        }
+        // Klik FAB langsung membuka form tambah konten (tugas otomatis tercentang)
+        openCreateCardModal('subject', true);
       });
     }
 
@@ -2792,7 +2795,7 @@
 
     const btnAddMateri = document.getElementById('btnAddMateriQuick');
     if (btnAddMateri) {
-      btnAddMateri.addEventListener('click', () => openCreateCardModal('subject', false));
+      btnAddMateri.addEventListener('click', () => openCreateCardModal('subject', true));
     }
 
     const btnAddTugas = document.getElementById('btnAddTugasQuick');
@@ -2802,7 +2805,7 @@
 
     const btnAddSubj = document.getElementById('btnAddSubjectCard');
     if (btnAddSubj) {
-      btnAddSubj.addEventListener('click', () => openCreateCardModal('subject', false));
+      btnAddSubj.addEventListener('click', () => openCreateCardModal('subject', true));
     }
 
     // Setup Drag and Drop Uploader for Cloudflare R2
@@ -2904,13 +2907,23 @@
 
     const kindSelect = document.getElementById('cfKind');
     const subjGroup = document.getElementById('cfSubjectGroup');
+    const hasTaskCheckbox = document.getElementById('cfHasTask');
     if (kindSelect && subjGroup) {
+      const handleKindChange = (val) => {
+        const isSubj = val === 'subject';
+        subjGroup.style.display = isSubj ? 'flex' : 'none';
+        if (hasTaskCheckbox) {
+          // Otomatis tercentang jika tipe materi/tugas mapel, dan tidak tercentang jika pengumuman kelas
+          hasTaskCheckbox.checked = isSubj;
+        }
+      };
+
       kindSelect.addEventListener('change', () => {
-        subjGroup.style.display = kindSelect.value === 'subject' ? 'flex' : 'none';
+        handleKindChange(kindSelect.value);
       });
       // Enhance select with Universal Dropdown (Req 9)
       window.ELearnizUI.dropdown.enhanceSelect(kindSelect, (val) => {
-        subjGroup.style.display = val === 'subject' ? 'flex' : 'none';
+        handleKindChange(val);
       });
     }
 
@@ -3176,12 +3189,17 @@
   }
 
   function openCreateCardModal(kind, forceTaskChecked) {
-    document.getElementById('cardFormTitle').textContent = kind === 'subject'
-      ? (forceTaskChecked ? 'Tambah Tugas Baru' : 'Tambah Materi Pelajaran')
-      : 'Tambah Pengumuman Kelas';
+    const isAnnouncement = kind === 'announcement';
+    // Otomatis tercentang defaultnya, kecuali jika tipenya pengumuman kelas
+    const isTask = isAnnouncement ? false : (forceTaskChecked !== undefined ? Boolean(forceTaskChecked) : true);
+
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    document.getElementById('cardFormTitle').textContent = isAnnouncement
+      ? t('modal_kind_announcement', 'Tambah Pengumuman Kelas')
+      : (isTask ? t('tasks_page_title', 'Tambah Tugas Baru') : t('materials_page_title', 'Tambah Materi Pelajaran'));
     document.getElementById('cfId').value = '';
     document.getElementById('cfKind').value = kind || 'subject';
-    document.getElementById('cfSubjectGroup').style.display = kind === 'announcement' ? 'none' : 'flex';
+    document.getElementById('cfSubjectGroup').style.display = isAnnouncement ? 'none' : 'flex';
     populateSubjectSelect(state.activeSubjectId || (state.subjects[0] && state.subjects[0].id));
     window.ELearnizUI.dropdown.enhanceSelect(document.getElementById('cfKind'));
     document.getElementById('cfBigTitle').value = '';
@@ -3196,7 +3214,7 @@
 
     const fi = document.getElementById('cfImageFile');
     if (fi) fi.value = '';
-    document.getElementById('cfHasTask').checked = Boolean(forceTaskChecked);
+    document.getElementById('cfHasTask').checked = isTask;
     document.getElementById('cfPinned').checked = false;
     window.ELearnizUI.popup.open('cardFormModal');
   }

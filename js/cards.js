@@ -33,6 +33,27 @@
     7: 'Min'
   };
 
+  function t(key, fallback) {
+    if (window.ELearnizI18n && typeof window.ELearnizI18n.t === 'function') {
+      return window.ELearnizI18n.t(key, fallback);
+    }
+    return fallback !== undefined ? fallback : key;
+  }
+
+  function getDayName(d) {
+    if (window.ELearnizI18n && typeof window.ELearnizI18n.getDayName === 'function') {
+      return window.ELearnizI18n.getDayName(d);
+    }
+    return DAY_NAMES[d] || 'Senin';
+  }
+
+  function getDayShort(d) {
+    if (window.ELearnizI18n && typeof window.ELearnizI18n.getDayShort === 'function') {
+      return window.ELearnizI18n.getDayShort(d);
+    }
+    return DAY_SHORT[d] || 'Sen';
+  }
+
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -181,7 +202,7 @@
     const activeDayNum = selectedDayOfWeek || smart.isoDay;
     const baseDayObj = scheduleDays.find((d) => Number(d.day_of_week) === Number(activeDayNum)) || {
       day_of_week: activeDayNum,
-      day_name: DAY_NAMES[activeDayNum] || 'Senin',
+      day_name: getDayName(activeDayNum),
       uniform: 'Putih Abu-Abu Lengkap',
       activity: 'KBM Normal & Literasi Pagi',
       note: 'Jangan lupa siapkan buku catatan & alat tulis.',
@@ -196,10 +217,10 @@
     const dayDelta = ((Number(activeDayNum) - Number(todayIso) + 7) % 7);
     const isTomorrowSelected = dayDelta === 1;
     const badgeLabel = isTodaySelected
-      ? 'JADWAL HARI INI'
+      ? `${t('dc_schedule_badge', 'JADWAL')} ${t('dc_today', 'HARI INI')}`.toUpperCase()
       : (isTomorrowSelected
-          ? 'JADWAL BESOK'
-          : `JADWAL ${String(DAY_NAMES[activeDayNum] || 'KELAS').toUpperCase()}`);
+          ? `${t('dc_schedule_badge', 'JADWAL')} ${t('dc_tomorrow', 'BESOK')}`.toUpperCase()
+          : `${t('dc_schedule_badge', 'JADWAL')} ${String(getDayName(activeDayNum)).toUpperCase()}`);
     const badgeExtraClass = isTomorrowSelected ? 'besok' : '';
     const dcColor = DAY_COLORS[activeDayNum] || '#2563eb';
 
@@ -221,7 +242,7 @@
                 <i class="fa-solid fa-calendar-day"></i> ${badgeLabel}
               </span>
             </div>
-            <h2 class="final-day" id="lblDcDay">${escapeHtml(dayObj.day_name || DAY_NAMES[activeDayNum])}</h2>
+            <h2 class="final-day" id="lblDcDay">${escapeHtml(getDayName(activeDayNum))}</h2>
             <span class="final-date">${escapeHtml(dateFormatted)}</span>
           </div>
 
@@ -243,7 +264,7 @@
             <div class="task-shortcut-box" id="dcTaskShortcut" title="Lihat Daftar Tugas">
               <div class="task-badge ${pendingTaskCount === 0 ? 'zero' : ''}">${pendingTaskCount}</div>
               <i class="fa-solid fa-list-check"></i>
-              <span>TUGAS</span>
+              <span>${t('dc_task_shortcut', 'TUGAS')}</span>
             </div>
           </div>
         </div>
@@ -256,8 +277,8 @@
             return `
               <button type="button" class="dc-day-tab ${isActive ? 'active' : ''} ${hasDraft ? 'has-draft' : ''}"
                 data-dc-day="${d}" role="tab" aria-selected="${isActive ? 'true' : 'false'}"
-                title="${DAY_NAMES[d] || 'Hari'}${hasDraft ? ' (Draf belum disimpan)' : ''}">
-                ${DAY_SHORT[d]}
+                title="${getDayName(d)}${hasDraft ? ' (Draf belum disimpan)' : ''}">
+                ${getDayShort(d)}
                 ${hasDraft ? '<span class="draft-indicator-dot"></span>' : ''}
               </button>
             `;
@@ -269,7 +290,7 @@
           <div class="info-card-dynamic seragam-row">
             <div class="card-icon"><i class="fa-solid fa-shirt"></i></div>
             <div class="card-meta">
-              <span class="card-label">Seragam</span>
+              <span class="card-label">${t('dc_uniform', 'Seragam')}</span>
               <div class="card-val editable-text" data-type="uniform" title="Klik untuk edit">${escapeHtml(dayObj.uniform || '-')}</div>
             </div>
           </div>
@@ -277,7 +298,7 @@
           <div class="info-card-dynamic kegiatan-row">
             <div class="card-icon"><i class="fa-solid fa-person-running"></i></div>
             <div class="card-meta">
-              <span class="card-label">Kegiatan</span>
+              <span class="card-label">${t('dc_activity', 'Kegiatan')}</span>
               <div class="card-val editable-text" data-type="activity" title="Klik untuk edit">${escapeHtml(dayObj.activity || '-')}</div>
             </div>
           </div>
@@ -285,7 +306,7 @@
           <div class="info-card-dynamic catatan-row">
             <div class="card-icon"><i class="fa-solid fa-bell"></i></div>
             <div class="card-meta">
-              <span class="card-label">Catatan Harian</span>
+              <span class="card-label">${t('dc_notes', 'Catatan Harian')}</span>
               <div class="card-val small editable-text" data-type="notes" title="Klik untuk edit">${escapeHtml(dayObj.note || '-')}</div>
             </div>
           </div>
@@ -294,7 +315,7 @@
         <!-- Jadwal Pelajaran Timeline (Editable Inline) -->
         <div class="final-section">
           <div class="final-title">
-            <i class="fa-solid fa-clock"></i> JADWAL PELAJARAN
+            <i class="fa-solid fa-clock"></i> ${t('dc_schedule', 'JADWAL PELAJARAN')}
           </div>
           <div class="final-timeline" id="dcTimelineList">
             ${periods.length === 0 ? `
@@ -324,7 +345,7 @@
         <!-- Jadwal Piket (Editable Inline) -->
         <div class="final-section">
           <div class="final-title">
-            <i class="fa-solid fa-broom"></i> JADWAL PIKET
+            <i class="fa-solid fa-broom"></i> ${t('dc_chores', 'JADWAL PIKET')}
           </div>
           <div class="picket-grid-big" id="dcPicketList">
             ${picketList.length === 0

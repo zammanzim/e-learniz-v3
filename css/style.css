@@ -3507,11 +3507,22 @@ header#mainHeader {
   transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.24s;
 }
 
+.modal-backdrop:not(.open):not(.is-open) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.modal-backdrop:not(.open):not(.is-open) * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .modal-backdrop.open,
 .modal-backdrop.is-open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 .modal-backdrop.is-closing {
@@ -6399,18 +6410,26 @@ header#mainHeader {
     flex-direction: column;
     overflow: hidden;
     transform: translate3d(0, 0, 0);
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, visibility 0.28s;
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
   }
 
-  .glass-detail-box:not(.text-only-mode) .detail-info-section.is-info-hidden {
+  .modal-backdrop.open .glass-detail-box:not(.text-only-mode) .detail-info-section,
+  .modal-backdrop.is-open .glass-detail-box:not(.text-only-mode) .detail-info-section {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-backdrop.open .glass-detail-box:not(.text-only-mode) .detail-info-section.is-info-hidden,
+  .modal-backdrop.is-open .glass-detail-box:not(.text-only-mode) .detail-info-section.is-info-hidden {
     transform: translate3d(-105%, 0, 0);
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   .glass-detail-box:not(.text-only-mode).info-collapsed .detail-media-section,
@@ -6506,6 +6525,10 @@ header#mainHeader {
   .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header {
     transform: translateY(0) !important;
     opacity: 1 !important;
+  }
+
+  .modal-backdrop.open .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header,
+  .modal-backdrop.is-open .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header {
     pointer-events: auto !important;
   }
 
@@ -6549,8 +6572,12 @@ header#mainHeader {
   border-left: none !important;
   border-radius: 24px;
   overflow: hidden;
-  pointer-events: auto !important;
   background: var(--bg-surface) !important;
+}
+
+.modal-backdrop.open .glass-detail-box.text-only-mode .detail-info-section,
+.modal-backdrop.is-open .glass-detail-box.text-only-mode .detail-info-section {
+  pointer-events: auto !important;
 }
 
 [data-theme="dark"] .glass-detail-box.text-only-mode .detail-info-section {
