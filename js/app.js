@@ -1311,6 +1311,11 @@
       track.innerHTML = '';
       if (nav) nav.style.display = 'none';
       if (counterPill) counterPill.style.display = 'none';
+      const waThumbStrip = document.getElementById('waThumbStrip');
+      if (waThumbStrip) {
+        waThumbStrip.style.display = 'none';
+        waThumbStrip.innerHTML = '';
+      }
       return;
     }
 
@@ -1363,6 +1368,37 @@
       if (totalIdxEl) totalIdxEl.textContent = String(currentViewerPhotos.length);
     }
 
+    // WhatsApp Desktop Thumbnail Strip
+    const waThumbStrip = document.getElementById('waThumbStrip');
+    if (waThumbStrip) {
+      if (currentViewerPhotos.length > 1) {
+        waThumbStrip.style.display = 'flex';
+        waThumbStrip.innerHTML = currentViewerPhotos.map((url, i) => {
+          const meta = classify(url);
+          const isVideo = meta.type === 'video';
+          return `
+            <div class="wa-thumb-item ${i === currentViewerIndex ? 'is-active' : ''}" data-thumb-index="${i}" title="Foto ${i + 1}">
+              ${isVideo
+                ? `<div class="wa-thumb-video-icon"><i class="fa-solid fa-play"></i></div>`
+                : `<img src="${esc(url)}" alt="Thumbnail ${i + 1}" loading="lazy" />`
+              }
+            </div>
+          `;
+        }).join('');
+
+        waThumbStrip.querySelectorAll('.wa-thumb-item').forEach((item) => {
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(item.getAttribute('data-thumb-index'), 10);
+            if (!isNaN(idx)) goToSlide(idx);
+          });
+        });
+      } else {
+        waThumbStrip.style.display = 'none';
+        waThumbStrip.innerHTML = '';
+      }
+    }
+
     // Set initial position instantly without transition
     track.style.transition = 'none';
     track.style.transform = `translate3d(-${currentViewerIndex * 100}%, 0, 0)`;
@@ -1390,6 +1426,32 @@
 
     if (currentIdxEl) {
       currentIdxEl.textContent = String(currentViewerIndex + 1);
+    }
+
+    // Sync active state in WhatsApp thumbnail strip
+    const waThumbStrip = document.getElementById('waThumbStrip');
+    if (waThumbStrip) {
+      const allThumbs = waThumbStrip.querySelectorAll('.wa-thumb-item');
+      allThumbs.forEach((thumb, idx) => {
+        if (idx === currentViewerIndex) {
+          thumb.classList.add('is-active');
+          try {
+            thumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          } catch (_) {}
+        } else {
+          thumb.classList.remove('is-active');
+        }
+      });
+    }
+
+    // Sync WhatsApp download button href & download attribute
+    const waDownloadBtn = document.getElementById('waDownloadBtn');
+    if (waDownloadBtn && currentViewerPhotos[currentViewerIndex]) {
+      waDownloadBtn.href = currentViewerPhotos[currentViewerIndex];
+      const activeMeta = typeof classifyAttachment === 'function' ? classifyAttachment(currentViewerPhotos[currentViewerIndex]) : null;
+      if (activeMeta && activeMeta.name) {
+        waDownloadBtn.download = activeMeta.name;
+      }
     }
 
     updateZoomControlsVisibility();
@@ -1514,11 +1576,25 @@
       zoomText.textContent = `${Math.round(currentZoomScale * 100)}%`;
     }
 
+    const waZoomText = document.getElementById('waZoomPercentText');
+    if (waZoomText) {
+      waZoomText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+    }
+
     if (zoomOutBtn) {
       zoomOutBtn.disabled = currentZoomScale <= MIN_ZOOM + 0.01;
     }
     if (zoomInBtn) {
       zoomInBtn.disabled = currentZoomScale >= MAX_ZOOM - 0.01;
+    }
+
+    const waZoomOutBtn = document.getElementById('waZoomOutBtn');
+    if (waZoomOutBtn) {
+      waZoomOutBtn.disabled = currentZoomScale <= MIN_ZOOM + 0.01;
+    }
+    const waZoomInBtn = document.getElementById('waZoomInBtn');
+    if (waZoomInBtn) {
+      waZoomInBtn.disabled = currentZoomScale >= MAX_ZOOM - 0.01;
     }
 
     if (wrapper) {
@@ -1583,11 +1659,20 @@
     const zoomText = document.getElementById('zoomPercentText');
     if (zoomText) zoomText.textContent = '100%';
 
+    const waZoomText = document.getElementById('waZoomPercentText');
+    if (waZoomText) waZoomText.textContent = '100%';
+
     const zoomOutBtn = document.getElementById('zoomOutBtn');
     if (zoomOutBtn) zoomOutBtn.disabled = true;
 
+    const waZoomOutBtn = document.getElementById('waZoomOutBtn');
+    if (waZoomOutBtn) waZoomOutBtn.disabled = true;
+
     const zoomInBtn = document.getElementById('zoomInBtn');
     if (zoomInBtn) zoomInBtn.disabled = false;
+
+    const waZoomInBtn = document.getElementById('waZoomInBtn');
+    if (waZoomInBtn) waZoomInBtn.disabled = false;
   }
 
   function initViewerZoomGestures() {
@@ -1595,12 +1680,22 @@
     const zoomInBtn = document.getElementById('zoomInBtn');
     const zoomOutBtn = document.getElementById('zoomOutBtn');
     const zoomResetBtn = document.getElementById('zoomResetBtn');
+    const waZoomInBtn = document.getElementById('waZoomInBtn');
+    const waZoomOutBtn = document.getElementById('waZoomOutBtn');
+    const waZoomResetBtn = document.getElementById('waZoomResetBtn');
 
     if (!wrapper) return;
 
     // Zoom Buttons
     if (zoomInBtn) {
       zoomInBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
+      });
+    }
+
+    if (waZoomInBtn) {
+      waZoomInBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         setZoom(currentZoomScale + ZOOM_STEP, null, null, true);
       });
@@ -1613,8 +1708,26 @@
       });
     }
 
+    if (waZoomOutBtn) {
+      waZoomOutBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setZoom(currentZoomScale - ZOOM_STEP, null, null, true);
+      });
+    }
+
     if (zoomResetBtn) {
       zoomResetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isViewerZoomed()) {
+          resetZoom(true);
+        } else {
+          setZoom(DOUBLE_TAP_ZOOM, null, null, true);
+        }
+      });
+    }
+
+    if (waZoomResetBtn) {
+      waZoomResetBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (isViewerZoomed()) {
           resetZoom(true);
@@ -2262,6 +2375,9 @@
       if (infoSection && !infoSection.classList.contains('hidden-mobile') && window.innerWidth <= 768) {
         return;
       }
+      if (infoSection && infoSection.classList.contains('is-drawer-open') && window.innerWidth > 768) {
+        return;
+      }
       detailBox.classList.add('controls-hidden');
     }
 
@@ -2290,6 +2406,9 @@
         if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
         detailBox.classList.remove('controls-hidden');
         if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
+        if (infoSection) infoSection.classList.remove('is-drawer-open');
+        const waToggleInfoBtn = document.getElementById('waToggleInfoBtn');
+        if (waToggleInfoBtn) waToggleInfoBtn.classList.remove('is-active');
         interactionEvents.forEach((ev) => {
           detailBox.removeEventListener(ev, handleViewerInteraction);
         });
@@ -2451,6 +2570,132 @@
       sheetHeader.addEventListener('pointercancel', handleDragEnd);
     }
 
+    // WhatsApp Desktop Top Header Configuration
+    const waTopHeader = document.getElementById('waTopHeader');
+    const waHeaderAvatar = document.getElementById('waHeaderAvatar');
+    const waHeaderTitle = document.getElementById('waHeaderTitle');
+    const waHeaderSub = document.getElementById('waHeaderSub');
+    const waDownloadBtn = document.getElementById('waDownloadBtn');
+    const waCloseBtn = document.getElementById('waCloseBtn');
+    const waToggleInfoBtn = document.getElementById('waToggleInfoBtn');
+    const drawerCloseBtn = document.getElementById('drawerCloseBtn');
+
+    if (photos.length > 0) {
+      if (waTopHeader) waTopHeader.style.display = 'flex';
+      if (waHeaderAvatar) {
+        waHeaderAvatar.innerHTML = `<i class="${safeIconCls(subj && subj.icon)}"></i>`;
+        waHeaderAvatar.style.background = subjAccent || '#202c33';
+      }
+      if (waHeaderTitle) {
+        waHeaderTitle.textContent = card.big_title || card.title || 'Tanpa Judul';
+      }
+      if (waHeaderSub) {
+        waHeaderSub.textContent = [subj ? subj.name : null, card.small || dueLabel].filter(Boolean).join(' · ') || 'Lampiran Berkas';
+      }
+      if (waDownloadBtn) {
+        const initialUrl = photos[photoIndex] || photos[0];
+        waDownloadBtn.href = initialUrl;
+        const m = classify(initialUrl);
+        if (m && m.name) waDownloadBtn.download = m.name;
+      }
+      if (waCloseBtn) {
+        waCloseBtn.onclick = (e) => {
+          if (e && e.stopPropagation) e.stopPropagation();
+          window.ELearnizUI.popup.close(modal);
+        };
+      }
+    } else {
+      if (waTopHeader) waTopHeader.style.display = 'none';
+    }
+
+    // WhatsApp Desktop Centered Caption Bar
+    const waCaptionBar = document.getElementById('waCaptionBar');
+    const waCaptionText = document.getElementById('waCaptionText');
+    const waCaptionTaskBtn = document.getElementById('waCaptionTaskBtn');
+
+    const updateWaTaskBtn = (done) => {
+      if (!waCaptionTaskBtn) return;
+      waCaptionTaskBtn.className = `wa-caption-task-btn ${done ? 'is-completed' : ''}`;
+      waCaptionTaskBtn.innerHTML = `
+        <i class="fa-solid ${done ? 'fa-rotate-left' : 'fa-check'}"></i>
+        <span>${done ? 'Selesai' : 'Tandai Selesai'}</span>
+      `;
+    };
+
+    const captionContent = (card.content || '').trim() || (card.title || '').trim();
+    if (waCaptionBar) {
+      if (photos.length > 0 && (captionContent || card.has_task)) {
+        waCaptionBar.style.display = 'block';
+        if (waCaptionText) {
+          waCaptionText.textContent = captionContent || (card.big_title || '');
+          waCaptionText.style.display = captionContent ? 'block' : 'none';
+        }
+        if (waCaptionTaskBtn) {
+          if (card.has_task) {
+            waCaptionTaskBtn.style.display = 'inline-flex';
+            updateWaTaskBtn(isDone);
+            waCaptionTaskBtn.onclick = async (e) => {
+              if (e && e.stopPropagation) e.stopPropagation();
+              await handleToggleTaskProgress(card.id);
+              const nextDone = state.completedTaskIds.has(String(card.id));
+              updateWaTaskBtn(nextDone);
+
+              // Sync drawer task card and button
+              const modalBtn = infoContent.querySelector('#modalToggleTaskBtn');
+              if (modalBtn) {
+                modalBtn.className = `detail-task-cta-btn ${nextDone ? 'completed-btn' : 'action-btn'}`;
+                modalBtn.innerHTML = `
+                  <i class="fa-solid ${nextDone ? 'fa-rotate-left' : 'fa-check'}"></i>
+                  <span>${nextDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
+                `;
+              }
+              const taskCard = infoContent.querySelector('.detail-task-card');
+              if (taskCard) {
+                taskCard.className = `detail-task-card ${nextDone ? 'is-completed' : 'is-pending'}`;
+                const iconCircle = taskCard.querySelector('.detail-task-icon-circle i');
+                if (iconCircle) iconCircle.className = `fa-solid ${nextDone ? 'fa-circle-check' : 'fa-list-check'}`;
+                const title = taskCard.querySelector('.task-card-title');
+                if (title) title.textContent = nextDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas';
+                const caption = taskCard.querySelector('.task-card-caption');
+                if (caption) caption.textContent = nextDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.';
+              }
+            };
+          } else {
+            waCaptionTaskBtn.style.display = 'none';
+          }
+        }
+      } else {
+        waCaptionBar.style.display = 'none';
+      }
+    }
+
+    // WhatsApp Desktop Slide-in Drawer Toggle
+    if (infoSection) {
+      infoSection.classList.remove('is-drawer-open');
+      if (waToggleInfoBtn) {
+        waToggleInfoBtn.classList.remove('is-active');
+        waToggleInfoBtn.onclick = (e) => {
+          if (e && e.stopPropagation) e.stopPropagation();
+          const isOpen = infoSection.classList.toggle('is-drawer-open');
+          waToggleInfoBtn.classList.toggle('is-active', isOpen);
+          if (isOpen) {
+            showViewerControls();
+            if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
+          } else {
+            restartViewerInactivityTimer();
+          }
+        };
+      }
+      if (drawerCloseBtn) {
+        drawerCloseBtn.onclick = (e) => {
+          if (e && e.stopPropagation) e.stopPropagation();
+          infoSection.classList.remove('is-drawer-open');
+          if (waToggleInfoBtn) waToggleInfoBtn.classList.remove('is-active');
+          restartViewerInactivityTimer();
+        };
+      }
+    }
+
     restartViewerInactivityTimer();
 
     const modalBtn = infoContent.querySelector('#modalToggleTaskBtn');
@@ -2458,6 +2703,9 @@
       modalBtn.addEventListener('click', async () => {
         await handleToggleTaskProgress(card.id);
         const updatedIsDone = state.completedTaskIds.has(String(card.id));
+        if (waCaptionTaskBtn && card.has_task) {
+          updateWaTaskBtn(updatedIsDone);
+        }
         const taskCard = infoContent.querySelector('.detail-task-card');
         if (taskCard) {
           taskCard.className = `detail-task-card ${updatedIsDone ? 'is-completed' : 'is-pending'}`;

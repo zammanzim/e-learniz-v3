@@ -6080,6 +6080,465 @@ header#mainHeader {
 }
 
 /* ==========================================================================
+   WHATSAPP WEB STYLE LIGHTBOX (DESKTOP >= 769px)
+   ========================================================================== */
+@media (min-width: 769px) {
+  .modal-detail-backdrop {
+    padding: 0;
+    background: #0b141a;
+  }
+
+  .glass-detail-box:not(.text-only-mode) {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background: #0b141a;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Hide mobile & older floating elements on desktop media view */
+  .glass-detail-box:not(.text-only-mode) > .close-detail-btn,
+  .glass-detail-box:not(.text-only-mode) .photo-counter-pill,
+  .glass-detail-box:not(.text-only-mode) .viewer-zoom-controls,
+  .glass-detail-box:not(.text-only-mode) .modern-floating-info-pill,
+  .glass-detail-box:not(.text-only-mode) .sheet-header-mobile {
+    display: none !important;
+  }
+
+  /* WhatsApp Top Header Bar */
+  .wa-top-header {
+    height: 60px;
+    background: #0b141a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.25rem;
+    z-index: 50;
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  }
+
+  .wa-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .wa-header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #202c33;
+    color: #e9edef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .wa-header-meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .wa-header-title {
+    color: #e9edef;
+    font-size: 0.98rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
+  }
+
+  .wa-header-sub {
+    color: #8696a0;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
+  }
+
+  .wa-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .wa-zoom-group {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(32, 44, 51, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 2px 4px;
+    margin-right: 0.5rem;
+  }
+
+  .wa-action-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #aebac1;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+
+  .wa-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e9edef;
+  }
+
+  .wa-action-btn:active {
+    transform: scale(0.92);
+  }
+
+  .wa-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: transparent !important;
+    color: #aebac1 !important;
+    transform: none !important;
+  }
+
+  .wa-action-btn.wa-zoom-reset {
+    width: auto;
+    min-width: 48px;
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: inherit;
+    color: #e9edef;
+  }
+
+  .wa-action-btn.is-active {
+    color: #00a884;
+    background: rgba(0, 168, 132, 0.18);
+  }
+
+  .wa-action-btn.wa-close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  /* WhatsApp Centered Media Pane */
+  .glass-detail-box:not(.text-only-mode) .detail-media-section {
+    flex: 1;
+    width: 100%;
+    position: relative;
+    background: #0b141a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .slider-slide img {
+    max-width: 90%;
+    max-height: calc(100vh - 185px);
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+
+  /* WhatsApp Navigation Arrows */
+  .glass-detail-box:not(.text-only-mode) .modern-slider-arrow {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(32, 44, 51, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e9edef;
+    font-size: 1.15rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  .glass-detail-box:not(.text-only-mode) .prev-btn {
+    left: 24px;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .next-btn {
+    right: 24px;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .modern-slider-arrow:hover {
+    background: rgba(42, 57, 66, 0.98);
+    color: #ffffff;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  }
+
+  /* WhatsApp Centered Caption Bar */
+  .wa-caption-bar {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 82%;
+    z-index: 30;
+    pointer-events: auto;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .wa-caption-inner {
+    background: rgba(17, 27, 33, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    padding: 0.55rem 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.95rem;
+    max-width: 100%;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .wa-caption-text {
+    color: #e9edef;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
+    max-height: 4.2rem;
+    overflow-y: auto;
+    word-break: break-word;
+  }
+
+  .wa-caption-task-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.45rem 0.95rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: #00a884;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 168, 132, 0.3);
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .wa-caption-task-btn:hover {
+    background: #02906f;
+    transform: translateY(-1px);
+  }
+
+  .wa-caption-task-btn:active {
+    transform: scale(0.96);
+  }
+
+  .wa-caption-task-btn.is-completed {
+    background: rgba(255, 255, 255, 0.12);
+    color: #8696a0;
+    box-shadow: none;
+  }
+
+  /* WhatsApp Bottom Thumbnail Strip */
+  .wa-thumb-strip {
+    height: 74px;
+    background: #0b141a;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 1.5rem;
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    z-index: 35;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  }
+
+  .wa-thumb-strip::-webkit-scrollbar {
+    height: 4px;
+  }
+  .wa-thumb-strip::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+
+  .wa-thumb-item {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    background: #111b21;
+    border: 2px solid transparent;
+    opacity: 0.55;
+    transition: opacity 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
+  }
+
+  .wa-thumb-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  .wa-thumb-video-icon {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e9edef;
+    font-size: 1.1rem;
+    background: #202c33;
+  }
+
+  .wa-thumb-item:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+
+  .wa-thumb-item.is-active {
+    opacity: 1;
+    border-color: #00a884;
+    transform: scale(1.08);
+    box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
+  }
+
+  /* Slide-in Detail Drawer for Desktop */
+  .glass-detail-box:not(.text-only-mode) .detail-info-section {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    bottom: 0;
+    width: 390px;
+    max-width: 90vw;
+    background: #111b21;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: none;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translate3d(105%, 0, 0);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .detail-info-section.is-drawer-open {
+    transform: translate3d(0, 0, 0);
+    pointer-events: auto;
+  }
+
+  .drawer-header-desktop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #111b21;
+    flex-shrink: 0;
+  }
+
+  .drawer-header-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e9edef;
+  }
+
+  .drawer-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: #8696a0;
+    font-size: 1.05rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .drawer-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e9edef;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .detail-info-section .info-content-scroll {
+    background: #111b21;
+    color: #e9edef;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .detail-info-section .detail-big-title {
+    color: #e9edef;
+  }
+
+  .glass-detail-box:not(.text-only-mode) .detail-info-section .detail-body-card {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+  }
+
+  /* Auto-hide Inactivity Controls (Immersive Mode) */
+  .glass-detail-box:not(.text-only-mode).controls-hidden .wa-top-header {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .glass-detail-box:not(.text-only-mode).controls-hidden .wa-thumb-strip {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .glass-detail-box:not(.text-only-mode).controls-hidden .wa-caption-bar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 10px);
+  }
+
+  .glass-detail-box:not(.text-only-mode).controls-hidden .slider-nav-container {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* ==========================================================================
    TEXT-ONLY MODE (NO PHOTOS)
    ========================================================================== */
 .glass-detail-box.text-only-mode {
@@ -6092,20 +6551,38 @@ header#mainHeader {
   border-radius: 24px;
 }
 
+.glass-detail-box.text-only-mode .wa-top-header,
+.glass-detail-box.text-only-mode .wa-caption-bar,
+.glass-detail-box.text-only-mode .wa-thumb-strip,
+.glass-detail-box.text-only-mode .drawer-header-desktop {
+  display: none !important;
+}
+
 .glass-detail-box.text-only-mode .detail-media-section,
 .glass-detail-box.text-only-mode .modern-floating-info-pill {
   display: none !important;
 }
 
 .glass-detail-box.text-only-mode .detail-info-section {
-  flex: 1;
-  width: 100%;
-  border-left: none;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  transform: none !important;
+  border-left: none !important;
   border-radius: 24px;
   overflow: hidden;
+  pointer-events: auto !important;
+  background: var(--bg-surface) !important;
+}
+
+[data-theme="dark"] .glass-detail-box.text-only-mode .detail-info-section {
+  background: #0f172a !important;
 }
 
 .glass-detail-box.text-only-mode .close-detail-btn {
+  display: flex !important;
   top: 16px;
   right: 18px;
   background: var(--bg-subtle);
@@ -6121,6 +6598,13 @@ header#mainHeader {
    MOBILE RESPONSIVE (<= 768px)
    ========================================================================== */
 @media (max-width: 768px) {
+  .wa-top-header,
+  .wa-caption-bar,
+  .wa-thumb-strip,
+  .drawer-header-desktop {
+    display: none !important;
+  }
+
   .modal-detail-backdrop {
     padding: 0;
   }

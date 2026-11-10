@@ -404,11 +404,46 @@
   <!-- ================= MODAL DETAIL KARTU & LIGHTBOX ================= -->
   <div class="modal-backdrop modal-detail-backdrop" id="cardDetailModal" aria-hidden="true">
     <div class="glass-detail-box" id="cardDetailBox">
+      <!-- WhatsApp Top Header for Desktop -->
+      <header class="wa-top-header" id="waTopHeader">
+        <div class="wa-header-left">
+          <div class="wa-header-avatar" id="waHeaderAvatar">
+            <i class="fa-solid fa-book"></i>
+          </div>
+          <div class="wa-header-meta">
+            <div class="wa-header-title" id="waHeaderTitle">Judul</div>
+            <div class="wa-header-sub" id="waHeaderSub">Mapel · Waktu</div>
+          </div>
+        </div>
+        <div class="wa-header-actions">
+          <div class="wa-zoom-group" id="waZoomGroup">
+            <button type="button" class="wa-action-btn" id="waZoomOutBtn" aria-label="Perkecil" title="Perkecil (-)">
+              <i class="fa-solid fa-magnifying-glass-minus"></i>
+            </button>
+            <button type="button" class="wa-action-btn wa-zoom-reset" id="waZoomResetBtn" aria-label="Reset Zoom" title="Reset Zoom">
+              <span id="waZoomPercentText">100%</span>
+            </button>
+            <button type="button" class="wa-action-btn" id="waZoomInBtn" aria-label="Perbesar" title="Perbesar (+)">
+              <i class="fa-solid fa-magnifying-glass-plus"></i>
+            </button>
+          </div>
+          <a href="#" download class="wa-action-btn" id="waDownloadBtn" aria-label="Unduh Foto" title="Unduh" target="_blank" rel="noopener noreferrer">
+            <i class="fa-solid fa-download"></i>
+          </a>
+          <button type="button" class="wa-action-btn" id="waToggleInfoBtn" aria-label="Lihat Informasi Kartu" title="Detail & Tugas">
+            <i class="fa-solid fa-circle-info"></i>
+          </button>
+          <button type="button" class="wa-action-btn wa-close-btn" id="waCloseBtn" data-close-modal="cardDetailModal" aria-label="Tutup" title="Tutup">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </header>
+
       <button type="button" class="close-detail-btn" id="closeDetailBtn" data-close-modal="cardDetailModal" aria-label="Tutup Detail" title="Tutup">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <!-- Media Section: Photo Slider (Left on Desktop / Fullscreen on Mobile) -->
+      <!-- Media Section: Photo Slider (Center on Desktop / Fullscreen on Mobile) -->
       <div class="detail-media-section" id="detailMediaSection">
         <div class="slider-wrapper" id="detailSliderWrapper">
           <div class="slider-spinner" id="sliderSpinner">
@@ -426,7 +461,7 @@
             </button>
           </div>
 
-          <!-- Modern Photo Counter Pill -->
+          <!-- Modern Photo Counter Pill (Mobile) -->
           <div id="photoCounterTag" class="photo-counter-pill">
             <i class="fa-regular fa-images"></i>
             <span id="pvCurrentIdx">1</span>
@@ -434,7 +469,7 @@
             <span id="pvTotalIdx">1</span>
           </div>
 
-          <!-- Modern Image Zoom Controls -->
+          <!-- Modern Image Zoom Controls (Mobile) -->
           <div id="viewerZoomControls" class="viewer-zoom-controls" style="display:none;" role="toolbar" aria-label="Kontrol Zoom Gambar">
             <button type="button" class="zoom-btn" id="zoomOutBtn" aria-label="Perkecil" title="Perkecil (-)" disabled>
               <i class="fa-solid fa-minus"></i>
@@ -454,12 +489,25 @@
             <span class="info-pill-chevron"><i class="fa-solid fa-chevron-up"></i></span>
           </button>
         </div>
+
+        <!-- WhatsApp Caption Bar (Desktop Below Photo) -->
+        <div class="wa-caption-bar" id="waCaptionBar" style="display:none;">
+          <div class="wa-caption-inner">
+            <div class="wa-caption-text" id="waCaptionText"></div>
+            <button type="button" class="wa-caption-task-btn" id="waCaptionTaskBtn" style="display:none;">
+              <i class="fa-solid fa-check"></i> <span>Tandai Selesai</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      <!-- WhatsApp Bottom Thumbnails Strip (Desktop) -->
+      <div class="wa-thumb-strip" id="waThumbStrip" style="display:none;"></div>
 
       <!-- Backdrop overlay for mobile description sheet (tap empty area to close) -->
       <div class="detail-sheet-backdrop" id="detailSheetBackdrop" aria-hidden="true"></div>
 
-      <!-- Info Section: Description & Task (Right on Desktop / Bottom Sheet on Mobile) -->
+      <!-- Info Section: Description & Task (Drawer on Desktop / Bottom Sheet on Mobile) -->
       <div class="detail-info-section" id="detailInfoSection">
         <div class="sheet-header-mobile">
           <button type="button" id="sheetToggleBtn" class="sheet-pill-btn" aria-label="Perbesar / Perkecil Sheet" title="Perbesar / Perkecil">
@@ -468,6 +516,12 @@
           <div class="sheet-drag-handle"></div>
           <button type="button" id="sheetCloseBtn" class="sheet-pill-btn" aria-label="Tutup Sheet" title="Kembali ke Foto">
             <i class="fa-solid fa-chevron-down"></i>
+          </button>
+        </div>
+        <div class="drawer-header-desktop">
+          <div class="drawer-header-title">Detail Kartu & Tugas</div>
+          <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Tutup Panel" title="Tutup Panel">
+            <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
         <div class="info-content-scroll" id="detailInfoContent"></div>
