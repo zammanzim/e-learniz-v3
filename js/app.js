@@ -1435,13 +1435,26 @@
       allThumbs.forEach((thumb, idx) => {
         if (idx === currentViewerIndex) {
           thumb.classList.add('is-active');
-          try {
-            thumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-          } catch (_) {}
+          // Scroll ONLY waThumbStrip container to center the active thumbnail without scrolling ancestors
+          const targetScroll = (thumb.offsetLeft + thumb.offsetWidth / 2) - (waThumbStrip.clientWidth / 2);
+          waThumbStrip.scrollTo({
+            left: Math.max(0, targetScroll),
+            behavior: 'smooth'
+          });
         } else {
           thumb.classList.remove('is-active');
         }
       });
+    }
+
+    // Lock container to prevent any horizontal shift
+    const detailBox = document.getElementById('cardDetailBox');
+    if (detailBox && detailBox.scrollLeft !== 0) {
+      detailBox.scrollLeft = 0;
+    }
+    const modalEl = document.getElementById('cardDetailModal');
+    if (modalEl && modalEl.scrollLeft !== 0) {
+      modalEl.scrollLeft = 0;
     }
 
     // Sync WhatsApp download button href & download attribute
@@ -2140,6 +2153,18 @@
     const nextBtn = document.getElementById('slideNextBtn');
 
     if (!modal || !detailBox || !infoContent) return;
+
+    // Reset any previous horizontal scroll shift
+    detailBox.scrollLeft = 0;
+    detailBox.scrollTop = 0;
+    modal.scrollLeft = 0;
+    modal.scrollTop = 0;
+    if (!detailBox._scrollGuardBound) {
+      detailBox._scrollGuardBound = true;
+      detailBox.addEventListener('scroll', () => {
+        if (detailBox.scrollLeft !== 0) detailBox.scrollLeft = 0;
+      }, { passive: true });
+    }
 
     let photos = [];
     const rawPhotos = card.images || card.photos || card.photo_url || [];
