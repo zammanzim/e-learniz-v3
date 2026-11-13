@@ -55,13 +55,20 @@
       .replace(/'/g, '&#39;');
   }
 
+  function t(key, fallback) {
+    if (window.ELearnizI18n && typeof window.ELearnizI18n.t === 'function') {
+      return window.ELearnizI18n.t(key, fallback);
+    }
+    return fallback !== undefined ? fallback : key;
+  }
+
   function roleLabel(role) {
     const value = String(role || '').toLowerCase();
     if (value === 'super_admin' || value === 'superadmin') return 'Super Admin';
-    if (value === 'class_admin' || value === 'admin') return 'Admin Kelas';
-    if (value === 'teacher' || value === 'guru' || value === 'staff') return 'Guru / Staf';
-    if (value === 'student') return 'Siswa';
-    return 'Tamu';
+    if (value === 'class_admin' || value === 'admin') return t('user_role_admin', 'Admin Kelas');
+    if (value === 'teacher' || value === 'guru' || value === 'staff') return t('subj_default_teacher', 'Guru / Staf');
+    if (value === 'student') return t('user_role_student', 'Siswa');
+    return t('header_guest_name', 'Tamu');
   }
 
   function roleClass(role) {
@@ -494,7 +501,7 @@
      ------------------------------------------------------------------------ */
   function skeletonHtml() {
     return `
-      <div class="visitor-skeleton" role="status" aria-label="Memuat pengunjung...">
+      <div class="visitor-skeleton" role="status" aria-label="${esc(t('visitor_loading', 'Memuat pengunjung...'))}">
         ${[0, 1, 2, 3].map(() => `
           <div class="visitor-skeleton-item">
             <span class="sk sk-circle" style="width:34px;height:34px;flex-shrink:0;"></span>
@@ -586,7 +593,7 @@
           <span>Auto reset 15:00</span>
         </label>
         <button type="button" class="visitor-reset-btn" id="visitorResetBtn">
-          <i class="fa-solid fa-rotate-right"></i> Bersihkan
+          <i class="fa-solid fa-rotate-right"></i> ${esc(t('visitor_reset_btn', 'Bersihkan'))}
         </button>
       </div>`;
   }
@@ -605,8 +612,8 @@
       : `
         <div class="visitor-empty">
           <i class="fa-solid fa-users"></i>
-          <h4>Belum Ada Pengunjung</h4>
-          <p>Daftar pengunjung kelas ini akan tampil di sini.</p>
+          <h4>${esc(t('visitor_empty', 'Belum Ada Pengunjung'))}</h4>
+          <p>${esc(t('visitor_empty_desc', 'Daftar pengunjung kelas ini akan tampil di sini.'))}</p>
         </div>`;
 
     const prevList = modalBody.querySelector('.visitor-list');
@@ -617,7 +624,7 @@
       <div class="visitor-summary">
         <div class="visitor-summary-main">
           <strong>${list.length}</strong>
-          <span>pengunjung</span>
+          <span>${esc(t('visitor_unit', 'pengunjung'))}</span>
         </div>
         <div class="visitor-online-pill">
           <span class="visitor-online-dot"></span>
@@ -625,7 +632,7 @@
         </div>
       </div>
       <div class="visitor-section-title">
-        <span><i class="fa-solid fa-clock-rotate-left"></i> Pengunjung Terakhir</span>
+        <span><i class="fa-solid fa-clock-rotate-left"></i> ${esc(t('visitor_recent_title', 'Pengunjung Terakhir'))}</span>
       </div>
       <div class="visitor-list">${listHtml}</div>
       ${adminBarHtml()}

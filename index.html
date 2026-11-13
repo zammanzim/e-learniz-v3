@@ -53,8 +53,8 @@
 
         <div class="dropdown" id="dropdownMenu">
           <div class="dropdown-user-header" id="dropdownUserHeader">
-            <strong id="dropdownUserName">Mode Tamu</strong>
-            <small id="dropdownUserRole">Guest Read-Only</small>
+            <strong id="dropdownUserName" data-i18n="header_guest_name">Mode Tamu</strong>
+            <small id="dropdownUserRole" data-i18n="header_guest_role">Guest Read-Only</small>
           </div>
 
           <!-- Class Switcher (Khusus super_admin) -->
@@ -62,7 +62,7 @@
             <button type="button" class="dropdown-class-trigger" id="classSwitcherTrigger">
               <span class="d-class-left">
                 <i class="fa-solid fa-school"></i>
-                <span>Ganti Kelas</span>
+                <span data-i18n="header_switch_class">Ganti Kelas</span>
               </span>
               <span class="d-class-right">
                 <span class="active-class-pill" id="activeClassBadge">Memuat...</span>
@@ -72,22 +72,22 @@
             <div class="dropdown-class-sublist" id="classSwitcherDropdown"></div>
           </div>
 
-          <a href="#" id="dropdownGoMateri"><i class="fa-solid fa-book-bookmark"></i> Materi Pembelajaran</a>
-          <a href="#" id="dropdownGoTugas"><i class="fa-solid fa-list-check"></i> Progres Tugas Saya</a>
-          <a href="#/tema" id="dropdownGoTema"><i class="fa-solid fa-palette"></i> Personalisasi Tema</a>
+          <a href="#" id="dropdownGoMateri"><i class="fa-solid fa-book-bookmark"></i> <span data-i18n="header_materials_menu">Materi Pembelajaran</span></a>
+          <a href="#" id="dropdownGoTugas"><i class="fa-solid fa-list-check"></i> <span data-i18n="header_tasks_menu">Progres Tugas Saya</span></a>
+          <a href="#/tema" id="dropdownGoTema"><i class="fa-solid fa-palette"></i> <span data-i18n="header_theme_menu">Personalisasi Tema</span></a>
           <a href="#" id="visitorTrigger" class="dropdown-visitor-item" role="button">
-            <span><i class="fa-solid fa-eye"></i> Pengunjung</span>
+            <span><i class="fa-solid fa-eye"></i> <span data-i18n="header_visitors_menu">Pengunjung</span></span>
             <span class="visitor-count-badge" id="visitorCount">0</span>
           </a>
-          <div class="dropdown-theme-toggle" id="dropdownThemeToggle" role="button" title="Ganti Tema">
-            <span class="theme-label"><i class="fa-solid fa-circle-half-stroke" id="dropdownThemeIcon" style="color: var(--accent);"></i> <span id="dropdownThemeText">Otomatis (Sistem)</span></span>
+          <div class="dropdown-theme-toggle" id="dropdownThemeToggle" role="button" title="Ganti Tema" data-i18n-title="header_theme_toggle_title">
+            <span class="theme-label"><i class="fa-solid fa-circle-half-stroke" id="dropdownThemeIcon" style="color: var(--accent);"></i> <span id="dropdownThemeText" data-i18n="theme_mode_auto_label">Otomatis (Sistem)</span></span>
             <div class="theme-toggle-switch">
               <span class="theme-toggle-knob"></span>
             </div>
           </div>
-          <a href="#" id="dropdownInstallBtn" style="display:none;"><i class="fa-solid fa-download"></i> Install Aplikasi</a>
-          <a href="login.html" id="dropdownLoginBtn"><i class="fa-solid fa-right-to-bracket"></i> Masuk Akun</a>
-          <a href="#" id="dropdownLogoutBtn" class="danger-link" style="display:none;"><i class="fa-solid fa-right-from-bracket"></i> Keluar Akun</a>
+          <a href="#" id="dropdownInstallBtn" style="display:none;"><i class="fa-solid fa-download"></i> <span data-i18n="header_install_app">Install Aplikasi</span></a>
+          <a href="login.html" id="dropdownLoginBtn"><i class="fa-solid fa-right-to-bracket"></i> <span data-i18n="header_login">Masuk Akun</span></a>
+          <a href="#" id="dropdownLogoutBtn" class="danger-link" style="display:none;"><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="header_logout">Keluar Akun</span></a>
         </div>
       </div>
     </div>
@@ -137,9 +137,9 @@
 
         <div class="right-section">
           <div class="right-section-header">
-            <h3><i class="fa-solid fa-bullhorn"></i> Pengumuman Kelas</h3>
+            <h3><i class="fa-solid fa-bullhorn"></i> <span data-i18n="home_announcements_title">Pengumuman Kelas</span></h3>
             <button class="btn-inline-add admin-only" id="btnAddAnnouncement" type="button" style="display:none;">
-              <i class="fa-solid fa-plus"></i> Buat Pengumuman
+              <i class="fa-solid fa-plus"></i> <span data-i18n="home_btn_add_announcement">Buat Pengumuman</span>
             </button>
           </div>
           <div id="announcementList" class="cards-stack"></div>
@@ -152,16 +152,16 @@
       <div class="main-layout">
         <div class="left-section">
           <h1 class="page-heading-title">
-            <i class="fa-solid fa-list-check"></i> Daftar Tugas
+            <i class="fa-solid fa-list-check"></i> <span data-i18n="tasks_page_title">Daftar Tugas</span>
           </h1>
           <div id="userTaskProfile"></div>
         </div>
 
         <div class="right-section">
           <div class="right-section-header">
-            <h3><i class="fa-solid fa-clipboard-check"></i> Semua Tugas Kelas</h3>
+            <h3><i class="fa-solid fa-clipboard-check"></i> <span data-i18n="tasks_all_class_tasks">Semua Tugas Kelas</span></h3>
             <button class="btn-inline-add admin-only" id="btnAddTugasQuick" type="button" style="display:none;">
-              <i class="fa-solid fa-plus"></i> Tambah Tugas
+              <i class="fa-solid fa-plus"></i> <span data-i18n="tasks_btn_add">Tambah Tugas</span>
             </button>
           </div>
 
@@ -169,15 +169,15 @@
           <div id="taskFilters" class="filter-group-wrapper" role="tablist" aria-label="Filter status tugas">
             <div class="filter-slider-bg" id="taskFilterSlider"></div>
             <button type="button" class="filter-tab-btn active" data-task-tab="pending" role="tab" aria-selected="true">
-              <i class="fa-solid fa-hourglass-half"></i> Belum
+              <i class="fa-solid fa-hourglass-half"></i> <span data-i18n="tasks_filter_pending">Belum</span>
               <span class="tab-count" id="tabPendingCount">0</span>
             </button>
             <button type="button" class="filter-tab-btn" data-task-tab="done" role="tab" aria-selected="false">
-              <i class="fa-solid fa-circle-check"></i> Selesai
+              <i class="fa-solid fa-circle-check"></i> <span data-i18n="tasks_filter_completed">Selesai</span>
               <span class="tab-count" id="tabDoneCount">0</span>
             </button>
             <button type="button" class="filter-tab-btn" data-task-tab="all" role="tab" aria-selected="false">
-              <i class="fa-solid fa-layer-group"></i> Semua
+              <i class="fa-solid fa-layer-group"></i> <span data-i18n="tasks_filter_all">Semua</span>
               <span class="tab-count" id="tabAllCount">0</span>
             </button>
           </div>
@@ -185,7 +185,7 @@
           <!-- Task Search Box (Req 10) -->
           <div class="tugas-search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="taskSearchInput" placeholder="Cari tugas berdasarkan judul, bab, catatan, atau mapel..." />
+            <input type="text" id="taskSearchInput" placeholder="Cari tugas berdasarkan judul, bab, catatan, atau mapel..." data-i18n-placeholder="tasks_search_placeholder" />
           </div>
           
           <!-- Filter Chips per Mata Pelajaran -->
@@ -202,23 +202,23 @@
       <div class="main-layout">
         <div class="left-section">
           <h1 class="page-heading-title">
-            <i class="fa-solid fa-book-bookmark"></i> Materi Pelajaran
+            <i class="fa-solid fa-book-bookmark"></i> <span data-i18n="materials_page_title">Materi Pelajaran</span>
           </h1>
           <div id="userMateriProfile"></div>
         </div>
 
         <div class="right-section">
           <div class="right-section-header">
-            <h3><i class="fa-solid fa-book-open-reader"></i> Semua Materi Kelas</h3>
+            <h3><i class="fa-solid fa-book-open-reader"></i> <span data-i18n="materials_all_title">Semua Materi Kelas</span></h3>
             <button class="btn-inline-add admin-only" id="btnAddMateriQuick" type="button" style="display:none;">
-              <i class="fa-solid fa-plus"></i> Tambah Materi
+              <i class="fa-solid fa-plus"></i> <span data-i18n="materials_btn_add">Tambah Materi</span>
             </button>
           </div>
 
           <!-- Materi Search Box -->
           <div class="tugas-search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="materiSearchInput" placeholder="Cari materi berdasarkan judul, bab, catatan, atau mapel..." />
+            <input type="text" id="materiSearchInput" placeholder="Cari materi berdasarkan judul, bab, catatan, atau mapel..." data-i18n-placeholder="materials_search_placeholder" />
           </div>
           
           <!-- Filter Chips per Mata Pelajaran -->
@@ -235,12 +235,12 @@
       <!-- Container Overview Semua Mapel (Req 14: Jika tanpa parameter mapel) -->
       <div id="allSubjectsOverview" style="display:none;">
         <div class="right-section-header" style="margin-bottom:0.8rem;">
-          <h3><i class="fa-solid fa-shapes"></i> Semua Mata Pelajaran</h3>
+          <h3><i class="fa-solid fa-shapes"></i> <span data-i18n="subjects_all_title">Semua Mata Pelajaran</span></h3>
           <span style="font-size:0.82rem;color:var(--text-muted);font-weight:700;" id="allSubjectsCountBadge">0 Mapel</span>
         </div>
         <div class="subject-search-box" style="margin-bottom:0.9rem;">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" id="allSubjectsSearchInput" placeholder="Cari nama mapel atau guru..." />
+          <input type="text" id="allSubjectsSearchInput" placeholder="Cari nama mapel atau guru..." data-i18n-placeholder="subjects_search_placeholder" />
         </div>
         <div class="all-subjects-grid" id="allSubjectsGrid"></div>
       </div>
@@ -272,7 +272,7 @@
                 </div>
               </div>
 
-              <button type="button" class="sic-edit-btn admin-only" id="btnEditSubjectInfo" style="display:none;" title="Edit Info Mapel">
+              <button type="button" class="sic-edit-btn admin-only" id="btnEditSubjectInfo" style="display:none;" title="Edit Info Mapel" data-i18n-title="modal_subject_edit_title">
                 <i class="fa-solid fa-pen"></i>
               </button>
             </div>
@@ -283,7 +283,7 @@
                 <div class="sic-stat-icon"><i class="fa-solid fa-folder-open"></i></div>
                 <div class="sic-stat-meta">
                   <span class="sic-stat-num" id="totalTasksCount">0</span>
-                  <span class="sic-stat-lbl">Konten Mapel</span>
+                  <span class="sic-stat-lbl" data-i18n="subj_stat_content">Konten Mapel</span>
                 </div>
               </div>
 
@@ -291,7 +291,7 @@
                 <div class="sic-stat-icon"><i class="fa-solid fa-list-check"></i></div>
                 <div class="sic-stat-meta">
                   <span class="sic-stat-num" id="completedTasksCount">0/0</span>
-                  <span class="sic-stat-lbl">Tugas Tuntas</span>
+                  <span class="sic-stat-lbl" data-i18n="subjects_completed_tasks_label">Tugas Tuntas</span>
                 </div>
               </div>
 
@@ -299,7 +299,7 @@
                 <div class="sic-stat-icon"><i class="fa-regular fa-calendar-check"></i></div>
                 <div class="sic-stat-meta">
                   <span class="sic-stat-num" id="subjectScheduleDays">-</span>
-                  <span class="sic-stat-lbl">Jadwal Hari</span>
+                  <span class="sic-stat-lbl" data-i18n="subjects_schedule_days_label">Jadwal Hari</span>
                 </div>
               </div>
             </div>
@@ -323,20 +323,20 @@
           <div class="right-section-header">
             <h3 id="subjectFeedHeading"><i class="fa-solid fa-book-open-reader"></i> Materi & Tugas</h3>
             <button class="btn-inline-add admin-only" id="btnAddSubjectCard" type="button" style="display:none;">
-              <i class="fa-solid fa-plus"></i> Tambah Materi / Tugas
+              <i class="fa-solid fa-plus"></i> <span data-i18n="subjects_btn_add_content">Tambah Materi / Tugas</span>
             </button>
           </div>
 
           <div class="subject-toolbar">
             <div class="subject-search-box">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="subjectSearchInput" placeholder="Cari materi atau tugas di mapel ini..." />
+              <input type="text" id="subjectSearchInput" placeholder="Cari materi atau tugas di mapel ini..." data-i18n-placeholder="materials_search_placeholder" />
             </div>
             <div class="subject-type-chips" id="subjectTypeChips">
-              <button type="button" class="subj-chip active" data-subj-filter="all">Semua</button>
-              <button type="button" class="subj-chip" data-subj-filter="tugas">Tugas</button>
-              <button type="button" class="subj-chip" data-subj-filter="materi">Materi</button>
-              <button type="button" class="subj-chip" data-subj-filter="pinned">Dipin</button>
+              <button type="button" class="subj-chip active" data-subj-filter="all" data-i18n="subjects_tab_all">Semua</button>
+              <button type="button" class="subj-chip" data-subj-filter="tugas" data-i18n="subjects_tab_tasks">Tugas</button>
+              <button type="button" class="subj-chip" data-subj-filter="materi" data-i18n="subjects_tab_materials">Materi</button>
+              <button type="button" class="subj-chip" data-subj-filter="pinned" data-i18n="card_pinned">Dipin</button>
             </div>
           </div>
 
@@ -359,7 +359,7 @@
         </div>
         <div>
           <div class="footer-brand-name">E-Learniz</div>
-          <div class="footer-brand-tag">Ruang Belajar Kelas Digital</div>
+          <div class="footer-brand-tag" data-i18n="app_tagline">Ruang Belajar Kelas Digital</div>
         </div>
       </div>
       <div class="footer-meta">
@@ -372,7 +372,7 @@
 
   <!-- ================= FLOATING ADMIN FAB ================= -->
   <div id="adminFabContainer" style="display:none;">
-    <button type="button" class="fab-main" id="fabMainBtn" title="Tambah Materi Pelajaran">
+    <button type="button" class="fab-main" id="fabMainBtn" title="Tambah Materi Pelajaran" data-i18n-title="modal_create_title">
       <i class="fa-solid fa-plus"></i>
     </button>
   </div>
@@ -381,24 +381,24 @@
   <nav id="bottomNav">
     <a href="#home" class="bn-item active" data-bn-nav="home">
       <i class="fa-solid fa-house"></i>
-      <span>Beranda</span>
+      <span data-i18n="nav_bottom_home">Beranda</span>
     </a>
     <a href="#tugas" class="bn-item" data-bn-nav="tugas">
       <i class="fa-solid fa-list-check"></i>
-      <span>Tugas</span>
+      <span data-i18n="nav_bottom_tugas">Tugas</span>
     </a>
     <div class="bn-center-wrapper">
-      <button type="button" class="bn-center-btn" id="bnMenuBtn" title="Buka Daftar Mapel">
+      <button type="button" class="bn-center-btn" id="bnMenuBtn" title="Buka Daftar Mapel" data-i18n-title="nav_subjects_section">
         <i class="fa-solid fa-compass"></i>
       </button>
     </div>
     <a href="#subject-first" class="bn-item" data-bn-nav="subject">
       <i class="fa-solid fa-book-open"></i>
-      <span>Mapel</span>
+      <span data-i18n="nav_bottom_subject">Mapel</span>
     </a>
     <a href="#profile" class="bn-item" id="bnProfileBtn">
       <i class="fa-solid fa-circle-user"></i>
-      <span>Akun</span>
+      <span data-i18n="nav_bottom_profile">Akun</span>
     </a>
   </nav>
 
@@ -486,7 +486,7 @@
           <!-- Modern Floating Action Capsule for Mobile -->
           <button type="button" id="toggleInfoBtn" class="modern-floating-info-pill" aria-label="Buka Deskripsi dan Detail">
             <span class="info-pill-icon"><i class="fa-solid fa-file-lines"></i></span>
-            <span class="info-pill-text">Lihat Detail & Tugas</span>
+            <span class="info-pill-text" data-i18n="detail_sheet_pill">Lihat Detail & Tugas</span>
             <span class="info-pill-chevron"><i class="fa-solid fa-chevron-up"></i></span>
           </button>
         </div>
@@ -496,7 +496,7 @@
           <div class="wa-caption-inner">
             <div class="wa-caption-text" id="waCaptionText"></div>
             <button type="button" class="wa-caption-task-btn" id="waCaptionTaskBtn" style="display:none;">
-              <i class="fa-solid fa-check"></i> <span>Tandai Selesai</span>
+              <i class="fa-solid fa-check"></i> <span data-i18n="card_task_mark_done">Tandai Selesai</span>
             </button>
           </div>
         </div>
@@ -520,7 +520,7 @@
           </button>
         </div>
         <div class="drawer-header-desktop">
-          <div class="drawer-header-title">Detail Kartu & Tugas</div>
+          <div class="drawer-header-title" data-i18n="detail_sheet_title">Detail Kartu & Tugas</div>
           <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Tutup Panel" title="Tutup Panel">
             <i class="fa-solid fa-xmark"></i>
           </button>
@@ -537,7 +537,7 @@
         <span class="modal-sheet-pill"></span>
       </div>
       <div class="modal-header">
-        <h3 id="cardFormTitle">Tambah Konten Baru</h3>
+        <h3 id="cardFormTitle" data-i18n="modal_create_title">Tambah Konten Baru</h3>
         <button type="button" class="modal-close-btn" data-close-modal="cardFormModal">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -547,55 +547,54 @@
 
         <div class="form-row-2">
           <div class="form-group">
-            <label for="cfKind">Jenis Konten</label>
+            <label for="cfKind" data-i18n="modal_kind_label">Jenis Konten</label>
             <select id="cfKind" required>
-              <option value="announcement">Pengumuman Kelas</option>
-              <option value="subject">Materi / Tugas Mapel</option>
+              <option value="announcement" data-i18n="modal_kind_announcement">Pengumuman Kelas</option>
+              <option value="subject" data-i18n="modal_kind_subject">Materi / Tugas Mapel</option>
             </select>
           </div>
           <div class="form-group" id="cfSubjectGroup">
-            <label for="cfSubjectId">Mata Pelajaran</label>
+            <label for="cfSubjectId" data-i18n="modal_subject_label">Mata Pelajaran</label>
             <select id="cfSubjectId"></select>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="cfBigTitle">Judul Utama (Big Title)</label>
-          <input type="text" id="cfBigTitle" placeholder="Contoh: Tugas Bab 3 — Persamaan Kuadrat" required />
+          <label for="cfBigTitle" data-i18n="modal_big_title_label">Judul Utama (Big Title)</label>
+          <input type="text" id="cfBigTitle" placeholder="Contoh: Tugas Bab 3 — Persamaan Kuadrat" data-i18n-placeholder="modal_big_title_placeholder" required />
         </div>
 
         <div class="form-group">
-          <label for="cfTitle">Subjudul / Bab (Opsional)</label>
-          <input type="text" id="cfTitle" placeholder="Contoh: Latihan Hal. 45 No. 1–10" />
+          <label for="cfTitle" data-i18n="modal_title_label">Subjudul / Bab (Opsional)</label>
+          <input type="text" id="cfTitle" placeholder="Contoh: Latihan Hal. 45 No. 1–10" data-i18n-placeholder="modal_title_placeholder" />
         </div>
 
         <div class="form-group">
-          <label for="cfContent">Isi Lengkap / Instruksi</label>
-          <textarea id="cfContent" rows="4" placeholder="Tulis penjelasan materi, pengumuman, atau instruksi pengerjaan tugas..."></textarea>
+          <label for="cfContent" data-i18n="modal_content_label">Isi Lengkap / Instruksi</label>
+          <textarea id="cfContent" rows="4" placeholder="Tulis penjelasan materi, pengumuman, atau instruksi pengerjaan tugas..." data-i18n-placeholder="modal_content_placeholder"></textarea>
         </div>
 
         <div class="form-row-2">
           <div class="form-group">
-            <label for="cfSmall">Catatan Kecil / Deadline Ketik</label>
-            <input type="text" id="cfSmall" placeholder="Contoh: Dikumpulkan di meja guru" />
+            <label for="cfSmall" data-i18n="modal_small_label">Catatan Kecil / Deadline Ketik</label>
+            <input type="text" id="cfSmall" placeholder="Contoh: Dikumpulkan di meja guru" data-i18n-placeholder="modal_small_placeholder" />
           </div>
           <div class="form-group">
-            <label for="cfDueDate">Batas Waktu (Tanggal & Jam)</label>
+            <label for="cfDueDate" data-i18n="modal_due_label">Batas Waktu (Tanggal & Jam)</label>
             <input type="datetime-local" id="cfDueDate" />
           </div>
         </div>
 
         <!-- Modern Drag & Drop R2 File Uploader -->
         <div class="form-group">
-          <label><i class="fa-solid fa-paperclip"></i> Berkas & Lampiran (Cloudflare R2)</label>
+          <label data-i18n="modal_attachments_label"><i class="fa-solid fa-paperclip"></i> Berkas & Lampiran (Cloudflare R2)</label>
           <div class="dropzone" id="cfDropzone">
             <input type="file" id="cfImageFile" multiple style="display:none;" />
             <div class="dropzone-icon">
               <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <div class="dropzone-text">
-              <p class="dropzone-main-text"><strong>Tarik & lepas berkas ke sini</strong>, atau <span class="dropzone-browse">pilih file</span></p>
-              <p class="dropzone-sub-text">Mendukung Dokumen (PDF, Word, PPT, Excel), Video, Foto & Berkas lainnya</p>
+              <p class="dropzone-main-text" data-i18n="modal_drop_text"><strong>Tarik & lepas berkas ke sini</strong>, atau <span class="dropzone-browse">pilih file</span></p>
             </div>
           </div>
           <input type="hidden" id="cfImages" />
@@ -614,9 +613,9 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn-secondary" data-close-modal="cardFormModal">Batal</button>
+          <button type="button" class="btn-secondary" data-close-modal="cardFormModal" data-i18n="modal_btn_cancel">Batal</button>
           <button type="submit" class="btn-primary" id="cfSubmitBtn">
-            <i class="fa-solid fa-floppy-disk"></i> Simpan
+            <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="modal_btn_save">Simpan</span>
           </button>
         </div>
       </form>
@@ -627,7 +626,7 @@
   <div class="modal-backdrop" id="subjectFormModal" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>Edit Informasi Mata Pelajaran</h3>
+        <h3 data-i18n="modal_subject_edit_title">Edit Informasi Mata Pelajaran</h3>
         <button type="button" class="modal-close-btn" data-close-modal="subjectFormModal">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -635,13 +634,13 @@
       <form id="subjectForm" class="modal-body form-stack">
         <input type="hidden" id="sfId" />
         <div class="form-group">
-          <label for="sfName">Nama Mata Pelajaran</label>
-          <input type="text" id="sfName" required />
+          <label for="sfName" data-i18n="modal_subject_name_label">Nama Mata Pelajaran</label>
+          <input type="text" id="sfName" placeholder="Contoh: Matematika Wajib" data-i18n-placeholder="modal_subject_name_placeholder" required />
         </div>
         <div class="form-row-2">
           <div class="form-group">
-            <label for="sfTeacher">Nama Pengajar</label>
-            <input type="text" id="sfTeacher" placeholder="Contoh: Budi Santoso, S.Pd" />
+            <label for="sfTeacher" data-i18n="modal_subject_teacher_label">Nama Pengajar</label>
+            <input type="text" id="sfTeacher" placeholder="Contoh: Budi Santoso, S.Pd" data-i18n-placeholder="modal_subject_teacher_placeholder" />
           </div>
           <div class="form-group">
             <label for="sfPhone">Nomor WhatsApp Guru</label>
@@ -650,18 +649,18 @@
         </div>
         <div class="form-row-2">
           <div class="form-group">
-            <label for="sfIcon">Icon FontAwesome</label>
+            <label for="sfIcon" data-i18n="modal_subject_icon_label">Icon FontAwesome</label>
             <input type="text" id="sfIcon" placeholder="fa-calculator" />
           </div>
           <div class="form-group">
-            <label for="sfColor">Warna Aksen Mapel</label>
+            <label for="sfColor" data-i18n="modal_subject_color_label">Warna Aksen Mapel</label>
             <input type="color" id="sfColor" value="#2563eb" />
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn-secondary" data-close-modal="subjectFormModal">Batal</button>
+          <button type="button" class="btn-secondary" data-close-modal="subjectFormModal" data-i18n="modal_btn_cancel">Batal</button>
           <button type="submit" class="btn-primary">
-            <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
+            <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="modal_btn_save">Simpan Perubahan</span>
           </button>
         </div>
       </form>
@@ -672,7 +671,7 @@
   <div class="modal-backdrop" id="visitorModal" aria-hidden="true">
     <div class="modal-dialog modal-sm">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-eye"></i> Pengunjung <span class="visitor-modal-count" id="visitorModalCount">0</span></h3>
+        <h3><i class="fa-solid fa-eye"></i> <span data-i18n="visitor_title">Pengunjung</span> <span class="visitor-modal-count" id="visitorModalCount">0</span></h3>
         <button type="button" class="modal-close-btn" data-close-modal="visitorModal">
           <i class="fa-solid fa-xmark"></i>
         </button>

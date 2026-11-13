@@ -649,7 +649,7 @@
     applyTheme(currentSettings);
     renderView();
     if (window.ELearnizUI && typeof window.ELearnizUI.toast === 'function') {
-      window.ELearnizUI.toast('Tema dan personalisasi telah dikembalikan ke standar (Otomatis Sistem)! ✨', 'success');
+      window.ELearnizUI.toast(t('toast_theme_reset', 'Tema dan personalisasi telah dikembalikan ke standar! ✨'), 'success');
     }
   }
 
@@ -705,15 +705,15 @@
     const modeBadge = previewContainer.querySelector('.tpc-mode-tag');
     if (modeBadge) {
       if (s.mode === 'auto') {
-        modeBadge.textContent = isDark ? '💻 Otomatis (Gelap)' : '💻 Otomatis (Terang)';
+        modeBadge.textContent = `💻 ${t('theme_mode_auto_label', isDark ? 'Otomatis (Gelap)' : 'Otomatis (Terang)')}`;
       } else {
-        modeBadge.textContent = isDark ? '🌙 Mode Gelap' : '☀️ Mode Terang';
+        modeBadge.textContent = isDark ? `🌙 ${t('theme_mode_dark_label', 'Mode Gelap')}` : `☀️ ${t('theme_mode_light_label', 'Mode Terang')}`;
       }
     }
 
     const accentBadge = previewContainer.querySelector('.tpc-accent-tag');
     if (accentBadge) {
-      const accName = s.accent === 'custom' ? `Kustom (${s.customAccentHex})` : (ACCENT_PRESETS[s.accent] ? ACCENT_PRESETS[s.accent].name : 'Sky Blue');
+      const accName = s.accent === 'custom' ? `${t('theme_custom_color_title', 'Kustom')} (${s.customAccentHex})` : (ACCENT_PRESETS[s.accent] ? ACCENT_PRESETS[s.accent].name : 'Sky Blue');
       accentBadge.textContent = `🎨 ${accName}`;
     }
   }
@@ -730,8 +730,8 @@
     const activeBgKey = isDark ? (s.bgStyleDark || 'midnight') : (s.bgStyleLight || 'breeze');
 
     const previewModeTag = s.mode === 'auto'
-      ? (isDark ? '💻 Otomatis (Gelap)' : '💻 Otomatis (Terang)')
-      : (isDark ? '🌙 Mode Gelap' : '☀️ Mode Terang');
+      ? (isDark ? `💻 ${t('theme_mode_auto_label', 'Otomatis (Gelap)')}` : `💻 ${t('theme_mode_auto_label', 'Otomatis (Terang)')}`)
+      : (isDark ? `🌙 ${t('theme_mode_dark_label', 'Mode Gelap')}` : `☀️ ${t('theme_mode_light_label', 'Mode Terang')}`);
 
     container.innerHTML = `
       <div class="main-layout theme-layout">
@@ -739,7 +739,7 @@
         <div class="left-section theme-preview-column">
           <div class="theme-preview-card" id="themeLivePreviewCard">
             <div class="tpc-header">
-              <div class="tpc-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> Pratinjau Langsung</div>
+              <div class="tpc-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> ${t('theme_preview_title', 'Pratinjau Langsung')}</div>
               <div class="tpc-tags">
                 <span class="tpc-mode-tag">${previewModeTag}</span>
                 <span class="tpc-accent-tag">🎨 ${s.accent === 'custom' ? `Kustom (${s.customAccentHex})` : (ACCENT_PRESETS[s.accent]?.name || 'Sky Blue')}</span>
@@ -747,7 +747,7 @@
             </div>
 
             <p class="tpc-subhead">
-              Sentuh dan coba langsung elemen di bawah ini untuk melihat aksen baru secara interaktif!
+              ${t('theme_preview_subtitle', 'Sentuh dan coba langsung elemen di bawah ini untuk melihat aksen baru secara interaktif!')}
             </p>
 
             <!-- Mini Daily Card Sample -->
@@ -755,16 +755,16 @@
               <div class="pmd-top-bar"></div>
               <div class="pmd-head">
                 <div>
-                  <span class="pmd-day-badge"><i class="fa-regular fa-calendar"></i> Hari Ini</span>
-                  <h4 class="pmd-title">Jadwal Pelajaran Kelas</h4>
+                  <span class="pmd-day-badge"><i class="fa-regular fa-calendar"></i> ${t('dc_today', 'Hari Ini')}</span>
+                  <h4 class="pmd-title">${t('theme_preview_schedule_title', 'Jadwal Pelajaran Kelas')}</h4>
                 </div>
-                <span class="pmd-badge-active">SEKARANG</span>
+                <span class="pmd-badge-active">${t('theme_preview_now', 'SEKARANG')}</span>
               </div>
               <div class="pmd-period">
                 <div class="pmd-time"><i class="fa-regular fa-clock"></i> 07:15 - 08:45</div>
                 <div class="pmd-subject">
                   <i class="fa-solid fa-code"></i>
-                  <span>Pemrograman Web & Perangkat Bergerak</span>
+                  <span>${t('theme_preview_subject_name', 'Pemrograman Web & Perangkat Bergerak')}</span>
                 </div>
               </div>
             </div>
@@ -772,34 +772,34 @@
             <!-- Mini Course Card Sample with Interactive Button -->
             <div class="preview-mini-card">
               <div class="pmc-header">
-                <div class="pmc-tag"><i class="fa-solid fa-pen-ruler"></i> Desain UI/UX & Tema</div>
-                <span class="pmc-pin" title="Disematkan"><i class="fa-solid fa-thumbtack"></i></span>
+                <div class="pmc-tag"><i class="fa-solid fa-pen-ruler"></i> ${t('theme_preview_course_tag', 'Desain UI/UX & Tema')}</div>
+                <span class="pmc-pin" title="${t('card_pinned', 'Disematkan')}"><i class="fa-solid fa-thumbtack"></i></span>
               </div>
-              <h4 class="pmc-title">Kustomisasi Aksen & Personalisasi Tema</h4>
-              <p class="pmc-desc">Sentuh tombol "Tandai Selesai" di bawah untuk melihat animasi feedback.</p>
+              <h4 class="pmc-title">${t('theme_preview_course_title', 'Kustomisasi Aksen & Personalisasi Tema')}</h4>
+              <p class="pmc-desc">${t('theme_preview_course_desc', 'Sentuh tombol "Tandai Selesai" di bawah untuk melihat animasi feedback.')}</p>
 
               <div class="pmc-actions">
                 <button type="button" class="preview-task-btn" id="previewTaskBtn">
                   <i class="fa-regular fa-square-check"></i>
-                  <span id="previewTaskBtnText">Tandai Selesai</span>
+                  <span id="previewTaskBtnText">${t('card_task_mark_done', 'Tandai Selesai')}</span>
                 </button>
-                <span class="preview-due"><i class="fa-regular fa-calendar-check"></i> Besok 23:59</span>
+                <span class="preview-due"><i class="fa-regular fa-calendar-check"></i> ${t('theme_preview_due_sample', 'Besok 23:59')}</span>
               </div>
             </div>
 
             <!-- Mini UI Elements Demo -->
             <div class="preview-mini-elements">
               <button type="button" class="btn-primary preview-btn-sample">
-                <i class="fa-solid fa-bolt"></i> Aksi Utama
+                <i class="fa-solid fa-bolt"></i> ${t('theme_preview_primary_action', 'Aksi Utama')}
               </button>
               <button type="button" class="btn-secondary preview-btn-sample">
-                Batal
+                ${t('theme_preview_secondary_action', 'Batal')}
               </button>
-              <span class="preview-chip-active">Chip Aktif</span>
+              <span class="preview-chip-active">${t('theme_preview_chip_active', 'Chip Aktif')}</span>
             </div>
 
             <div class="tpc-footer-note">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Semua personalisasi tersimpan otomatis di perangkatmu.
+              <i class="fa-solid fa-cloud-arrow-up"></i> ${t('theme_saved_note', 'Semua personalisasi tersimpan otomatis di perangkatmu.')}
             </div>
           </div>
         </div>
@@ -811,12 +811,12 @@
             <div class="thc-left">
               <div class="thc-icon"><i class="fa-solid fa-palette"></i></div>
               <div>
-                <h1 class="thc-title">Personalisasi & Tema</h1>
-                <p class="thc-subtitle">Sesuaikan aksen warna, mode tampilan, sudut tombol, dan gaya latar belajar sesuai seleramu.</p>
+                <h1 class="thc-title">${t('theme_page_title', 'Personalisasi & Tema')}</h1>
+                <p class="thc-subtitle">${t('theme_page_subtitle', 'Sesuaikan aksen warna, mode tampilan, sudut tombol, bahasa, dan gaya latar belajar sesuai seleramu.')}</p>
               </div>
             </div>
-            <button type="button" class="btn-theme-reset" id="btnThemeReset" title="Kembalikan semua ke setelan pabrik">
-              <i class="fa-solid fa-rotate-left"></i> <span>Reset Standar</span>
+            <button type="button" class="btn-theme-reset" id="btnThemeReset" title="${t('theme_btn_reset', 'Reset Standar')}">
+              <i class="fa-solid fa-rotate-left"></i> <span>${t('theme_btn_reset', 'Reset Standar')}</span>
             </button>
           </div>
 
@@ -825,16 +825,16 @@
             <div class="tpc-card-header">
               <div class="tpc-header-icon"><i class="fa-solid fa-circle-half-stroke"></i></div>
               <div>
-                <h3>Mode Tampilan</h3>
-                <p>Pilih pencahayaan yang paling pas untuk mata dan lingkungan belajarmu.</p>
+                <h3>${t('theme_mode_title', 'Mode Tampilan')}</h3>
+                <p>${t('theme_mode_desc', 'Pilih pencahayaan yang paling pas untuk mata dan lingkungan belajarmu.')}</p>
               </div>
             </div>
             <div class="theme-modes-grid">
               <button type="button" class="theme-mode-btn ${s.mode === 'auto' ? 'active' : ''}" data-mode="auto">
                 <div class="tmb-icon"><i class="fa-solid fa-laptop" style="color:#10b981;"></i></div>
                 <div class="tmb-text">
-                  <strong>Otomatis <span class="tmb-badge-default">Bawaan</span></strong>
-                  <span>Sistem (${isSystemDark ? 'Aktif: Gelap 🌙' : 'Aktif: Terang ☀️'})</span>
+                  <strong>${t('theme_mode_auto', 'Otomatis')} <span class="tmb-badge-default">${t('theme_default_badge', 'Bawaan')}</span></strong>
+                  <span>${t('theme_mode_auto_desc', 'Sistem')} (${isSystemDark ? '🌙' : '☀️'})</span>
                 </div>
                 ${s.mode === 'auto' ? '<i class="fa-solid fa-check tmb-check"></i>' : ''}
               </button>
@@ -842,8 +842,8 @@
               <button type="button" class="theme-mode-btn ${s.mode === 'light' ? 'active' : ''}" data-mode="light">
                 <div class="tmb-icon"><i class="fa-solid fa-sun" style="color:#f59e0b;"></i></div>
                 <div class="tmb-text">
-                  <strong>Terang</strong>
-                  <span>Cerah & bersih untuk siang hari</span>
+                  <strong>${t('theme_mode_light', 'Terang')}</strong>
+                  <span>${t('theme_mode_light_desc', 'Cerah & bersih untuk siang hari')}</span>
                 </div>
                 ${s.mode === 'light' ? '<i class="fa-solid fa-check tmb-check"></i>' : ''}
               </button>
@@ -851,8 +851,8 @@
               <button type="button" class="theme-mode-btn ${s.mode === 'dark' ? 'active' : ''}" data-mode="dark">
                 <div class="tmb-icon"><i class="fa-solid fa-moon" style="color:#38bdf8;"></i></div>
                 <div class="tmb-text">
-                  <strong>Gelap</strong>
-                  <span>Teduh & nyaman untuk malam hari</span>
+                  <strong>${t('theme_mode_dark', 'Gelap')}</strong>
+                  <span>${t('theme_mode_dark_desc', 'Teduh & nyaman untuk malam hari')}</span>
                 </div>
                 ${s.mode === 'dark' ? '<i class="fa-solid fa-check tmb-check"></i>' : ''}
               </button>
@@ -933,8 +933,8 @@
             <div class="tpc-card-header">
               <div class="tpc-header-icon"><i class="fa-solid fa-layer-group"></i></div>
               <div>
-                <h3>Nuansa Latar Belakang (${isDark ? 'Mode Gelap' : 'Mode Terang'})</h3>
-                <p>Tingkat kepekatan kontras dan corak warna kanvas di belakang kartu.</p>
+                <h3>${t('theme_bg_title', 'Nuansa Latar Belakang')} (${isDark ? t('theme_mode_dark', 'Mode Gelap') : t('theme_mode_light', 'Mode Terang')})</h3>
+                <p>${t('theme_bg_desc', 'Tingkat kepekatan kontras dan corak warna kanvas di belakang kartu.')}</p>
               </div>
             </div>
 
@@ -961,13 +961,13 @@
             <div class="tpc-card-header">
               <div class="tpc-header-icon"><i class="fa-solid fa-shapes"></i></div>
               <div>
-                <h3>Bentuk Sudut & Tipografi</h3>
-                <p>Atur kelengkungan tombol/kartu dan jenis huruf yang paling kamu sukai.</p>
+                <h3>${t('theme_radius_title', 'Bentuk Sudut & Tipografi')}</h3>
+                <p>${t('theme_radius_desc', 'Atur kelengkungan tombol/kartu dan jenis huruf yang paling kamu sukai.')}</p>
               </div>
             </div>
 
             <!-- Sub: Radius -->
-            <label class="theme-group-label"><i class="fa-solid fa-vector-square"></i> Kelengkungan Sudut (Corner Radius)</label>
+            <label class="theme-group-label"><i class="fa-solid fa-vector-square"></i> ${t('theme_corner_radius', 'Kelengkungan Sudut (Corner Radius)')}</label>
             <div class="theme-radius-grid">
               ${Object.keys(RADIUS_PRESETS).map((key) => {
                 const r = RADIUS_PRESETS[key];
@@ -984,7 +984,7 @@
             </div>
 
             <!-- Sub: Fonts -->
-            <label class="theme-group-label" style="margin-top: 1.5rem;"><i class="fa-solid fa-font"></i> Pilihan Tipografi / Font</label>
+            <label class="theme-group-label" style="margin-top: 1.5rem;"><i class="fa-solid fa-font"></i> ${t('theme_fonts', 'Pilihan Tipografi / Font')}</label>
             <div class="theme-fonts-grid">
               ${Object.keys(FONT_PRESETS).map((key) => {
                 const f = FONT_PRESETS[key];
@@ -1006,8 +1006,8 @@
             <div class="tpc-card-header">
               <div class="tpc-header-icon"><i class="fa-solid fa-sliders"></i></div>
               <div>
-                <h3>Efek & Kerapatan Tampilan</h3>
-                <p>Pengaturan visual tambahan untuk memaksimalkan kenyamanan belajar.</p>
+                <h3>${t('theme_extras_title', 'Efek & Kerapatan Tampilan')}</h3>
+                <p>${t('theme_extras_desc', 'Pengaturan visual tambahan untuk memaksimalkan kenyamanan belajar.')}</p>
               </div>
             </div>
 
@@ -1017,8 +1017,8 @@
                 <div class="ter-meta">
                   <div class="ter-icon"><i class="fa-solid fa-sun-plant-wilt"></i></div>
                   <div>
-                    <strong>Ambient Glow Background</strong>
-                    <p>Efek kilau cahaya gradien ambient yang lembut di latar belakang aplikasi.</p>
+                    <strong>${t('theme_glow_title', 'Ambient Glow Background')}</strong>
+                    <p>${t('theme_glow_desc', 'Efek kilau cahaya gradien ambient yang lembut di latar belakang aplikasi.')}</p>
                   </div>
                 </div>
                 <label class="theme-switch">
@@ -1032,16 +1032,16 @@
                 <div class="ter-meta">
                   <div class="ter-icon"><i class="fa-solid fa-compress"></i></div>
                   <div>
-                    <strong>Kerapatan Tampilan (Density)</strong>
-                    <p>Pilih tampilan nyaman berspasi lega atau mode ringkas/padat.</p>
+                    <strong>${t('theme_density_title', 'Kerapatan Tampilan (Density)')}</strong>
+                    <p>${t('theme_density_desc', 'Pilih tampilan nyaman berspasi lega atau mode ringkas/padat.')}</p>
                   </div>
                 </div>
                 <div class="theme-segmented-ctrl">
                   <button type="button" class="${s.density === 'comfortable' ? 'active' : ''}" data-density="comfortable">
-                    Nyaman
+                    ${t('theme_density_comfortable', 'Nyaman')}
                   </button>
                   <button type="button" class="${s.density === 'compact' ? 'active' : ''}" data-density="compact">
-                    Ringkas
+                    ${t('theme_density_compact', 'Ringkas')}
                   </button>
                 </div>
               </div>
@@ -1066,7 +1066,7 @@
     if (resetBtn) {
       resetBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        if (confirm('Kembalikan semua warna, mode, dan tata letak tema ke setelan standar E-Learniz?')) {
+        if (confirm(t('confirm_reset_theme', 'Kembalikan semua warna, mode, dan tata letak tema ke setelan standar E-Learniz?'))) {
           resetToDefault();
         }
       });
@@ -1082,7 +1082,7 @@
         }
         renderView();
         if (window.ELearnizUI && window.ELearnizUI.toast) {
-          window.ELearnizUI.toast(lang === 'en' ? 'Language switched to English! 🇬🇧' : 'Bahasa diubah ke Bahasa Indonesia! 🇮🇩', 'success');
+          window.ELearnizUI.toast(lang === 'en' ? t('toast_lang_changed_en', 'Language switched to English! 🇬🇧') : t('toast_lang_changed_id', 'Bahasa diubah ke Bahasa Indonesia! 🇮🇩'), 'success');
         }
       });
     });
@@ -1094,9 +1094,10 @@
         updateSettings({ mode });
         renderView();
         const effective = resolveEffectiveMode(mode);
+        const autoStatus = effective === 'dark' ? t('theme_mode_dark', 'Gelap') : t('theme_mode_light', 'Terang');
         const toastMsg = mode === 'dark'
-          ? 'Mode Gelap diaktifkan 🌙'
-          : (mode === 'light' ? 'Mode Terang diaktifkan ☀️' : `Mode Otomatis Sistem diaktifkan 💻 (${effective === 'dark' ? 'Gelap' : 'Terang'})`);
+          ? t('toast_mode_dark', 'Mode Gelap diaktifkan 🌙')
+          : (mode === 'light' ? t('toast_mode_light', 'Mode Terang diaktifkan ☀️') : (window.ELearnizI18n ? window.ELearnizI18n.format('toast_mode_auto', { status: autoStatus }) : `Mode Otomatis Sistem diaktifkan 💻 (${autoStatus})`));
         if (window.ELearnizUI && window.ELearnizUI.toast) window.ELearnizUI.toast(toastMsg, 'info');
       });
     });
@@ -1108,7 +1109,10 @@
         updateSettings({ accent });
         renderView();
         const name = ACCENT_PRESETS[accent]?.name || 'Sky Blue';
-        if (window.ELearnizUI && window.ELearnizUI.toast) window.ELearnizUI.toast(`Aksen warna diubah ke ${name}! ✨`, 'info');
+        const toastMsg = window.ELearnizI18n
+          ? window.ELearnizI18n.format('toast_accent_changed', { name })
+          : `Aksen warna diubah ke ${name}! ✨`;
+        if (window.ELearnizUI && window.ELearnizUI.toast) window.ELearnizUI.toast(toastMsg, 'info');
       });
     });
 
@@ -1196,10 +1200,10 @@
         const isDone = previewTaskBtn.classList.toggle('completed');
         if (isDone) {
           previewTaskBtn.querySelector('i').className = 'fa-solid fa-circle-check';
-          if (previewTaskText) previewTaskText.textContent = 'Selesai Dicatat! 🎉';
+          if (previewTaskText) previewTaskText.textContent = `${t('card_task_done', 'Selesai Dicatat!')} 🎉`;
         } else {
           previewTaskBtn.querySelector('i').className = 'fa-regular fa-square-check';
-          if (previewTaskText) previewTaskText.textContent = 'Tandai Selesai';
+          if (previewTaskText) previewTaskText.textContent = t('card_task_mark_done', 'Tandai Selesai');
         }
       });
     }

@@ -172,11 +172,14 @@
      HEADER, PROFILE DROPDOWN & CLASS SWITCHER
      ------------------------------------------------------------------------ */
   function renderHeaderAndAuthUI() {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     const user = state.currentUser;
+    const guestName = t('header_guest_name', 'Tamu');
+    const guestRole = t('header_guest_role', 'Mode Tamu');
     const nickname = user
-      ? (user.nickname || user.username || (user.display_name ? user.display_name.split(' ')[0] : 'Tamu'))
-      : 'Tamu';
-    const fullName = user ? (user.display_name || user.full_name || nickname) : 'Mode Tamu';
+      ? (user.nickname || user.username || (user.display_name ? user.display_name.split(' ')[0] : guestName))
+      : guestName;
+    const fullName = user ? (user.display_name || user.full_name || nickname) : guestRole;
 
     const greetingEl = document.getElementById('greeting');
     const welcomeTextEl = document.getElementById('welcomeText');
@@ -186,7 +189,6 @@
     const loginBtn = document.getElementById('dropdownLoginBtn');
     const logoutBtn = document.getElementById('dropdownLogoutBtn');
 
-    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     if (greetingEl) greetingEl.textContent = `${t('header_greeting_prefix', 'Haii, ')}${nickname}`;
     if (welcomeTextEl) welcomeTextEl.textContent = `${t('header_greeting_prefix', 'Haii, ')}${nickname}! 👋`;
     if (avatarEl) avatarEl.textContent = nickname.charAt(0).toUpperCase();
@@ -194,7 +196,7 @@
     if (ddRole) {
       ddRole.textContent = state.isSuperAdmin
         ? 'Super Admin'
-        : (state.isAdmin ? 'Admin Kelas' : (user ? 'Siswa Aktif' : 'Mode Tamu'));
+        : (state.isAdmin ? t('user_role_admin', 'Admin Kelas') : (user ? t('user_role_student', 'Siswa Aktif') : guestRole));
     }
 
     if (loginBtn) loginBtn.style.display = user ? 'none' : 'flex';
@@ -259,9 +261,9 @@
       }
       if (themeText) {
         if (mode === 'auto') {
-          themeText.textContent = isDark ? 'Sistem (Gelap)' : 'Sistem (Terang)';
+          themeText.textContent = isDark ? `💻 ${t('theme_mode_auto_label', 'Sistem (Gelap)')}` : `💻 ${t('theme_mode_auto_label', 'Sistem (Terang)')}`;
         } else {
-          themeText.textContent = isDark ? 'Mode Gelap' : 'Mode Terang';
+          themeText.textContent = isDark ? `🌙 ${t('theme_mode_dark_label', 'Mode Gelap')}` : `☀️ ${t('theme_mode_light_label', 'Mode Terang')}`;
         }
       }
     }
@@ -655,14 +657,15 @@
       .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
 
     const annContainer = document.getElementById('announcementList');
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     window.ELearnizCards.renderCourseCardList(annContainer, announcementCards, {
       completedTaskSet: state.completedTaskIds,
       subjectsMap: state.subjectsMap,
       showSubjectOrigin: false,
       isAdmin: state.isAdmin,
       priorityMap,
-      emptyTitle: 'Belum Ada Pengumuman Kelas',
-      emptySubtitle: 'Pengumuman terbaru dari pengurus kelas atau wali kelas akan tampil di sini.',
+      emptyTitle: t('home_no_announcements_title', 'Belum Ada Pengumuman Kelas'),
+      emptySubtitle: t('home_no_announcements_desc', 'Pengumuman terbaru dari pengurus kelas atau wali kelas akan tampil di sini.'),
       onToggleTask: handleToggleTaskProgress,
       onOpenDetail: openCardDetailModal,
       onEditCard: openEditCardModal,
@@ -723,6 +726,8 @@
   }
 
   function renderTugasView(allTaskCards, pendingTaskCards, priorityMap = {}) {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    const fmt = (window.ELearnizI18n && window.ELearnizI18n.format) ? window.ELearnizI18n.format : (k, p, fb) => fb;
     const profileContainer = document.getElementById('userTaskProfile');
     const totalCount = allTaskCards.length;
     const completedCount = totalCount - pendingTaskCards.length;
@@ -760,7 +765,7 @@
 
       chipsContainer.innerHTML = [
         `<button type="button" class="mapel-chip-tugas ${state.taskMapelFilter === 'all' ? 'active' : ''}" data-mapel-chip="all">
-          <i class="fa-solid fa-layer-group"></i> <span>Semua Mapel</span>
+          <i class="fa-solid fa-layer-group"></i> <span>${t('tasks_chip_all_subjects', 'Semua Mapel')}</span>
           <span class="mapel-chip-count">${totalCount}</span>
         </button>`,
         ...subjectsWithTasks.map((s) => `
@@ -805,20 +810,20 @@
 
     const taskListContainer = document.getElementById('taskList');
     const isSearchActive = Boolean(state.taskSearchQuery);
-    let emptyTitle = 'Belum Ada Tugas di Filter Ini';
-    let emptySubtitle = 'Tugas dari mata pelajaran akan muncul di daftar ini.';
+    let emptyTitle = t('tasks_empty_filter_title', 'Belum Ada Tugas di Filter Ini');
+    let emptySubtitle = t('tasks_empty_filter_desc', 'Tugas dari mata pelajaran akan muncul di daftar ini.');
 
     if (isSearchActive) {
-      emptyTitle = 'Tidak Ada Tugas Ditemukan';
-      emptySubtitle = `Tidak ada tugas yang cocok dengan kata kunci "${state.taskSearchQuery}".`;
+      emptyTitle = t('tasks_search_no_results', 'Tidak Ada Tugas Ditemukan');
+      emptySubtitle = fmt('tasks_search_no_results_desc', { query: state.taskSearchQuery }, `Tidak ada tugas yang cocok dengan kata kunci "${state.taskSearchQuery}".`);
     } else if (state.taskTab === 'pending') {
-      emptyTitle = totalCount === 0 ? 'Belum Ada Tugas' : 'Semua Tugas Sudah Selesai! 🎉';
+      emptyTitle = totalCount === 0 ? t('tasks_empty_all_title', 'Belum Ada Tugas') : t('tasks_all_done_title', 'Semua Tugas Sudah Selesai! 🎉');
       emptySubtitle = totalCount === 0
-        ? 'Tugas dari mata pelajaran akan muncul di daftar ini.'
-        : 'Tidak ada tanggungan tugas yang belum selesai. Kerja bagus!';
+        ? t('tasks_empty_all_desc', 'Tugas dari mata pelajaran akan muncul di daftar ini.')
+        : t('tasks_all_done_desc', 'Tidak ada tanggungan tugas yang belum selesai. Kerja bagus!');
     } else if (state.taskTab === 'done') {
-      emptyTitle = 'Belum Ada Tugas Selesai';
-      emptySubtitle = 'Tandai tugas sebagai selesai, nanti daftarnya muncul di tab ini.';
+      emptyTitle = t('tasks_empty_done_title', 'Belum Ada Tugas Selesai');
+      emptySubtitle = t('tasks_empty_done_desc', 'Tandai tugas sebagai selesai, nanti daftarnya muncul di tab ini.');
     }
 
     window.ELearnizCards.renderCourseCardList(taskListContainer, filtered, {
@@ -861,6 +866,8 @@
   }
 
   function renderMateriView(allMateriCards, priorityMap = {}) {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    const fmt = (window.ELearnizI18n && window.ELearnizI18n.format) ? window.ELearnizI18n.format : (k, p, fb) => fb;
     const profileContainer = document.getElementById('userMateriProfile');
     const totalCount = allMateriCards.length;
 
@@ -890,7 +897,7 @@
 
       chipsContainer.innerHTML = [
         `<button type="button" class="mapel-chip-tugas ${state.materiMapelFilter === 'all' ? 'active' : ''}" data-materi-chip="all">
-          <i class="fa-solid fa-layer-group"></i> <span>Semua Mapel</span>
+          <i class="fa-solid fa-layer-group"></i> <span>${t('materials_chip_all_subjects', 'Semua Mapel')}</span>
           <span class="mapel-chip-count">${totalCount}</span>
         </button>`,
         ...subjectsWithMateri.map((s) => `
@@ -932,12 +939,12 @@
 
     const materiListContainer = document.getElementById('materiList');
     const isSearchActive = Boolean(state.materiSearchQuery);
-    let emptyTitle = 'Belum Ada Materi Pembelajaran';
-    let emptySubtitle = 'Materi pembelajaran dari bapak/ibu guru akan muncul di daftar ini.';
+    let emptyTitle = t('materials_empty_title', 'Belum Ada Materi Pembelajaran');
+    let emptySubtitle = t('materials_empty_desc', 'Materi pembelajaran dari bapak/ibu guru akan muncul di daftar ini.');
 
     if (isSearchActive) {
-      emptyTitle = 'Tidak Ada Materi Ditemukan';
-      emptySubtitle = `Tidak ada materi yang cocok dengan kata kunci "${state.materiSearchQuery}".`;
+      emptyTitle = t('materials_search_no_results', 'Tidak Ada Materi Ditemukan');
+      emptySubtitle = fmt('materials_search_no_results_desc', { query: state.materiSearchQuery }, `Tidak ada materi yang cocok dengan kata kunci "${state.materiSearchQuery}".`);
     }
 
     window.ELearnizCards.renderCourseCardList(materiListContainer, filtered, {
@@ -1001,6 +1008,7 @@
   }
 
   function renderAllSubjectsOverview() {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     const singleLayout = document.getElementById('singleSubjectLayout');
     const allOverview = document.getElementById('allSubjectsOverview');
     const grid = document.getElementById('allSubjectsGrid');
@@ -1028,7 +1036,7 @@
         })
       : state.subjects;
 
-    if (countBadge) countBadge.textContent = `${visibleSubjects.length} Mapel Tersedia`;
+    if (countBadge) countBadge.textContent = `${visibleSubjects.length} ${t('subj_overview_available', 'Mapel Tersedia')}`;
 
     if (!grid) return;
 
@@ -1036,8 +1044,8 @@
       grid.innerHTML = `
         <div class="empty-card-state" style="grid-column: 1 / -1;">
           <i class="fa-solid fa-book"></i>
-          <h4>Belum Ada Mata Pelajaran</h4>
-          <p>Mata pelajaran untuk kelas ini belum ditambahkan.</p>
+          <h4>${t('subj_empty_title', 'Belum Ada Mata Pelajaran')}</h4>
+          <p>${t('subj_empty_desc', 'Mata pelajaran untuk kelas ini belum ditambahkan.')}</p>
         </div>
       `;
       return;
@@ -1047,8 +1055,8 @@
       grid.innerHTML = `
         <div class="empty-card-state" style="grid-column: 1 / -1;">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <h4>Mapel Tidak Ditemukan</h4>
-          <p>Tidak ada mapel/guru yang cocok dengan kata kunci tersebut.</p>
+          <h4>${t('subj_search_no_results', 'Mapel Tidak Ditemukan')}</h4>
+          <p>${t('subj_search_no_results_desc', 'Tidak ada mapel/guru yang cocok dengan kata kunci tersebut.')}</p>
         </div>
       `;
       return;
@@ -1068,17 +1076,17 @@
             </div>
             <div class="asc-title-wrap">
               <h3>${esc(s.name)}</h3>
-              <span>${esc(s.teacher_name || 'Guru Pengajar')}</span>
+              <span>${esc(s.teacher_name || t('subj_default_teacher', 'Guru Pengajar'))}</span>
             </div>
           </div>
           <div class="asc-stats">
             <div class="asc-stat-pill">
               <span class="asc-stat-num">${subjCards.length}</span>
-              <span class="asc-stat-lbl">Konten Mapel</span>
+              <span class="asc-stat-lbl">${t('subj_stat_content', 'Konten Mapel')}</span>
             </div>
             <div class="asc-stat-pill">
               <span class="asc-stat-num">${subjPending.length}</span>
-              <span class="asc-stat-lbl">Tugas Aktif</span>
+              <span class="asc-stat-lbl">${t('subj_stat_tasks', 'Tugas Aktif')}</span>
             </div>
           </div>
         </div>
@@ -1094,6 +1102,8 @@
   }
 
   function renderSubjectView(priorityMap = {}) {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    const fmt = (window.ELearnizI18n && window.ELearnizI18n.format) ? window.ELearnizI18n.format : (k, p, fb) => fb;
     const singleLayout = document.getElementById('singleSubjectLayout');
     const allOverview = document.getElementById('allSubjectsOverview');
 
@@ -1150,13 +1160,13 @@
     }
     if (nameEl) nameEl.textContent = subject.name;
     if (feedHeading) {
-      feedHeading.innerHTML = `<i class="fa-solid fa-book-open-reader"></i> Materi & Tugas — ${esc(subject.name)}`;
+      feedHeading.innerHTML = `<i class="fa-solid fa-book-open-reader"></i> ${t('subj_feed_heading', 'Materi & Tugas')} — ${esc(subject.name)}`;
     }
 
     const statusEl = document.getElementById('subjectStatus');
     if (statusEl) {
       if (subject.is_locked) {
-        statusEl.innerHTML = '<i class="fa-solid fa-lock"></i> TERKUNCI';
+        statusEl.innerHTML = `<i class="fa-solid fa-lock"></i> ${t('subj_locked', 'TERKUNCI')}`;
         statusEl.className = 'status-badge locked';
         statusEl.style.display = 'inline-flex';
       } else {
@@ -1166,7 +1176,7 @@
       }
     }
     if (teacherNameEl) {
-      teacherNameEl.textContent = subject.teacher_name || 'Guru Pengajar Belum Diatur';
+      teacherNameEl.textContent = subject.teacher_name || t('subj_no_teacher', 'Guru Pengajar Belum Diatur');
     }
     if (teacherPhoneEl) {
       if (subject.teacher_phone) {
@@ -1174,7 +1184,7 @@
         const waNumber = cleanDigits.startsWith('0') ? `62${cleanDigits.slice(1)}` : cleanDigits;
         teacherPhoneEl.innerHTML = `
           <a href="https://wa.me/${waNumber}" target="_blank" rel="noopener" class="wa-link" title="Chat WhatsApp Guru">
-            <i class="fa-brands fa-whatsapp"></i> Chat Guru
+            <i class="fa-brands fa-whatsapp"></i> ${t('subj_chat_teacher', 'Chat Guru')}
           </a>
         `;
       } else {
@@ -1183,7 +1193,15 @@
     }
 
     // Schedule days calculation for this subject
-    const DAY_SHORT_NAMES = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 7: 'Minggu' };
+    const DAY_SHORT_NAMES = {
+      1: t('day_1', 'Senin'),
+      2: t('day_2', 'Selasa'),
+      3: t('day_3', 'Rabu'),
+      4: t('day_4', 'Kamis'),
+      5: t('day_5', 'Jumat'),
+      6: t('day_6', 'Sabtu'),
+      7: t('day_7', 'Minggu')
+    };
     const subjectNameKey = normalizeLabel(subject.name);
     const scheduledDays = (state.scheduleDays || [])
       .filter((d) => d.periods && d.periods.some((p) => {
@@ -1199,7 +1217,7 @@
       .filter(Boolean);
     const scheduleDaysEl = document.getElementById('subjectScheduleDays');
     if (scheduleDaysEl) {
-      scheduleDaysEl.textContent = scheduledDays.length > 0 ? scheduledDays.join(', ') : 'Mandiri';
+      scheduleDaysEl.textContent = scheduledDays.length > 0 ? scheduledDays.join(', ') : t('subj_schedule_independent', 'Mandiri');
     }
 
     // Subject cards & progress stats
@@ -1214,26 +1232,30 @@
       ? Math.round((subjDoneTasks.length / subjTasks.length) * 100)
       : (allSubjCards.length > 0 ? 100 : 0);
 
-    if (totalEl) totalEl.textContent = `${allSubjCards.length} Konten`;
-    if (completedEl) completedEl.textContent = subjTasks.length > 0 ? `${subjDoneTasks.length}/${subjTasks.length}` : '0 Tugas';
+    if (totalEl) totalEl.textContent = `${allSubjCards.length} ${t('subj_content_count_suffix', 'Konten')}`;
+    if (completedEl) completedEl.textContent = subjTasks.length > 0 ? `${subjDoneTasks.length}/${subjTasks.length}` : `0 ${t('subj_tasks_count_suffix', 'Tugas')}`;
     if (progressBar) progressBar.style.width = `${pct}%`;
     if (progressPercent) {
       if (subjTasks.length === 0) {
-        progressPercent.textContent = 'Materi Pembelajaran Saja';
+        progressPercent.textContent = t('subj_materi_only', 'Materi Pembelajaran Saja');
       } else {
-        progressPercent.textContent = `Tuntas ${subjDoneTasks.length} dari ${subjTasks.length} Tugas (${pct}%)`;
+        progressPercent.textContent = fmt('subj_progress_tasks', {
+          completed: subjDoneTasks.length,
+          total: subjTasks.length,
+          pct
+        }, `Tuntas ${subjDoneTasks.length} dari ${subjTasks.length} Tugas (${pct}%)`);
       }
     }
 
     const captionEl = document.getElementById('subjectCaption');
     if (captionEl) {
       if (subjTasks.length === 0) {
-        captionEl.innerHTML = '✨ Belum ada tugas untuk mapel ini. Pelajari materi yang ada ya!';
+        captionEl.innerHTML = '✨ ' + t('subj_caption_no_tasks', 'Belum ada tugas untuk mapel ini. Pelajari materi yang ada ya!');
       } else if (pct === 100) {
-        captionEl.innerHTML = '🎉 Hebat! Semua tugas di mapel ini sudah selesai kamu kerjakan!';
+        captionEl.innerHTML = '🎉 ' + t('subj_caption_all_done', 'Hebat! Semua tugas di mapel ini sudah selesai kamu kerjakan!');
       } else {
         const pendingCount = subjTasks.length - subjDoneTasks.length;
-        captionEl.innerHTML = `💪 Masih ada ${pendingCount} tugas aktif. Yuk selesaikan tepat waktu!`;
+        captionEl.innerHTML = '💪 ' + fmt('subj_caption_pending_tasks', { count: pendingCount }, `Masih ada ${pendingCount} tugas aktif. Yuk selesaikan tepat waktu!`);
       }
     }
 
@@ -1264,8 +1286,8 @@
       showSubjectOrigin: false,
       isAdmin: state.isAdmin,
       priorityMap,
-      emptyTitle: `Belum Ada Materi di ${subject.name}`,
-      emptySubtitle: 'Materi pelajaran, rangkuman, atau latihan tugas akan tampil di sini.',
+      emptyTitle: fmt('subj_empty_feed_title', { subject: subject.name }, `Belum Ada Materi di ${subject.name}`),
+      emptySubtitle: t('subj_empty_feed_desc', 'Materi pelajaran, rangkuman, atau latihan tugas akan tampil di sini.'),
       onToggleTask: handleToggleTaskProgress,
       onOpenDetail: openCardDetailModal,
       onEditCard: openEditCardModal,
@@ -1278,8 +1300,9 @@
      TASK PROGRESS TOGGLE & MODAL DETAIL
      ------------------------------------------------------------------------ */
   async function handleToggleTaskProgress(cardId) {
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     if (!state.currentUser) {
-      showToast('Masuk sebagai siswa dulu supaya progres tugasmu tersimpan.', 'warning');
+      showToast(t('toast_login_required_task', 'Masuk sebagai siswa dulu supaya progres tugasmu tersimpan.'), 'warning');
       return;
     }
 
@@ -1290,9 +1313,9 @@
       state.completedTaskIds = updatedSet instanceof Set ? updatedSet : new Set(updatedSet || []);
       const isNowDone = state.completedTaskIds.has(String(cardId));
       renderAllViews();
-      showToast(isNowDone ? 'Tugas ditandai selesai! 🎉' : 'Status tugas dikembalikan ke belum selesai.');
+      showToast(isNowDone ? t('toast_task_done', 'Tugas ditandai selesai! 🎉') : t('toast_task_undone', 'Status tugas dikembalikan ke belum selesai.'));
     } catch (err) {
-      showToast('Gagal menyimpan progres tugas: ' + (err.message || err), 'error');
+      showToast(t('toast_task_save_error', 'Gagal menyimpan progres tugas: ') + (err.message || err), 'error');
     }
   }
 
@@ -1377,9 +1400,11 @@
 
     // WhatsApp Desktop Thumbnail Strip
     const waThumbStrip = document.getElementById('waThumbStrip');
+    const detailBox = document.getElementById('cardDetailBox');
     if (waThumbStrip) {
       if (currentViewerPhotos.length > 1) {
         waThumbStrip.style.display = 'flex';
+        if (detailBox) detailBox.classList.add('has-thumbs');
         waThumbStrip.innerHTML = currentViewerPhotos.map((url, i) => {
           const meta = classify(url);
           const isVideo = meta.type === 'video';
@@ -1402,6 +1427,7 @@
         });
       } else {
         waThumbStrip.style.display = 'none';
+        if (detailBox) detailBox.classList.remove('has-thumbs');
         waThumbStrip.innerHTML = '';
       }
     }
@@ -1585,6 +1611,17 @@
   }
 
   function updateZoomUI(animate = true) {
+    const detailBox = document.getElementById('cardDetailBox');
+    const zoomed = isViewerZoomed();
+    if (detailBox) {
+      if (zoomed) {
+        detailBox.classList.add('is-viewer-zoomed');
+        detailBox.classList.remove('controls-hidden');
+      } else {
+        detailBox.classList.remove('is-viewer-zoomed');
+      }
+    }
+
     const img = getActiveSlideImage();
     const wrapper = document.getElementById('detailSliderWrapper');
     const zoomText = document.getElementById('zoomPercentText');
@@ -1628,20 +1665,10 @@
     }
 
     if (wrapper) {
-      if (isViewerZoomed()) {
+      if (zoomed) {
         wrapper.classList.add('is-zoomed');
       } else {
         wrapper.classList.remove('is-zoomed', 'is-dragging');
-      }
-    }
-
-    const detailBox = document.getElementById('cardDetailBox');
-    if (detailBox) {
-      if (isViewerZoomed()) {
-        detailBox.classList.add('is-viewer-zoomed');
-        detailBox.classList.remove('controls-hidden');
-      } else {
-        detailBox.classList.remove('is-viewer-zoomed');
       }
     }
   }
@@ -2261,6 +2288,7 @@
 
     initSliderTrack(photos, photoIndex);
 
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     const subj = card.subject_id ? state.subjectsMap[String(card.subject_id)] : null;
     const isDone = state.completedTaskIds.has(String(card.id));
     const dueLabel = (window.ELearnizCards && window.ELearnizCards.formatDueLabel)
@@ -2269,6 +2297,7 @@
     // Badge prioritas: hitung dari tanggal tenggat (WIB), bukan dari teks label,
     // karena formatDueLabel() tidak pernah memuat kata "hari ini/besok".
     let dueBadgeLabel = null;
+    let duePriorityType = null;
     if (card.due_date) {
       const dueDate = new Date(card.due_date);
       if (!isNaN(dueDate.getTime())) {
@@ -2278,8 +2307,13 @@
         const todayKey = T ? T.dateKey(new Date(nowMs)) : new Date(nowMs).toDateString();
         // Tambah 24 jam apa adanya aman karena WIB tidak mengenal DST.
         const tomorrowKey = T ? T.dateKey(new Date(nowMs + 86400000)) : new Date(nowMs + 86400000).toDateString();
-        if (dueKey === todayKey) dueBadgeLabel = 'Tenggat Hari Ini';
-        else if (dueKey === tomorrowKey) dueBadgeLabel = 'Tenggat Besok';
+        if (dueKey === todayKey) {
+          dueBadgeLabel = t('card_due_today', 'Tenggat Hari Ini');
+          duePriorityType = 'today';
+        } else if (dueKey === tomorrowKey) {
+          dueBadgeLabel = t('card_due_tomorrow', 'Tenggat Besok');
+          duePriorityType = 'tomorrow';
+        }
       }
     }
     const esc = window.ELearnizCards ? window.ELearnizCards.escapeHtml : (s => s || '');
@@ -2357,11 +2391,11 @@
 
         <span class="detail-badge type-badge ${card.has_task ? 'is-task' : 'is-info'}">
           <i class="fa-solid ${card.has_task ? 'fa-list-check' : (subj ? 'fa-book-bookmark' : 'fa-bullhorn')}"></i>
-          <span>${card.has_task ? 'Tugas Kelas' : (subj ? 'Materi Pelajaran' : 'Pengumuman')}</span>
+          <span>${card.has_task ? t('detail_type_task', 'Tugas Kelas') : (subj ? t('detail_type_materi', 'Materi Pelajaran') : t('detail_type_announcement', 'Pengumuman'))}</span>
         </span>
 
         ${dueBadgeLabel ? `
-          <span class="detail-badge priority-badge ${dueBadgeLabel.includes('Hari Ini') ? 'is-today' : 'is-tomorrow'}">
+          <span class="detail-badge priority-badge ${duePriorityType === 'today' ? 'is-today' : 'is-tomorrow'}">
             <i class="fa-solid fa-bolt"></i>
             <span>${dueBadgeLabel}</span>
           </span>
@@ -2370,7 +2404,7 @@
 
       <div class="detail-title-block">
         <h2 class="detail-big-title">
-          ${esc(card.big_title || card.title || 'Tanpa Judul')}
+          ${esc(card.big_title || card.title || (window.ELearnizI18n && window.ELearnizI18n.getLanguage() === 'en' ? 'Untitled' : 'Tanpa Judul'))}
         </h2>
         ${(card.title && card.big_title) ? `<div class="detail-sub-title">${esc(card.title)}</div>` : ''}
       </div>
@@ -2384,7 +2418,7 @@
       ${(photos.length > 0) ? `
         <div class="detail-attachments-box">
           <h4 class="detail-attachments-title">
-            <i class="fa-solid fa-paperclip"></i> Lampiran & Berkas (${photos.length})
+            <i class="fa-solid fa-paperclip"></i> ${t('detail_attachments_title', 'Berkas & Lampiran')} (${photos.length})
           </h4>
           <div class="detail-attachments-list">
             ${photos.map((url) => {
@@ -2399,10 +2433,10 @@
                     <span class="detail-att-tag">${esc(m.ext.toUpperCase())}</span>
                   </div>
                   <div class="detail-att-actions">
-                    <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="detail-att-btn" title="Buka di tab baru">
+                    <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="detail-att-btn" title="${window.ELearnizI18n && window.ELearnizI18n.getLanguage() === 'en' ? 'Open in new tab' : 'Buka di tab baru'}">
                       <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
-                    <a href="${esc(url)}" download="${esc(m.name)}" class="detail-att-btn is-download" title="Unduh berkas">
+                    <a href="${esc(url)}" download="${esc(m.name)}" class="detail-att-btn is-download" title="${window.ELearnizI18n && window.ELearnizI18n.getLanguage() === 'en' ? 'Download file' : 'Unduh berkas'}">
                       <i class="fa-solid fa-download"></i>
                     </a>
                   </div>
@@ -2427,13 +2461,13 @@
               <i class="fa-solid ${isDone ? 'fa-circle-check' : 'fa-list-check'}"></i>
             </div>
             <div class="detail-task-meta-text">
-              <span class="task-card-title">${isDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas'}</span>
-              <span class="task-card-caption">${isDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.'}</span>
+              <span class="task-card-title">${isDone ? t('detail_task_status_title_done', 'Tugas Telah Selesai') : t('detail_task_status_title_pending', 'Status Pengerjaan Tugas')}</span>
+              <span class="task-card-caption">${isDone ? t('detail_task_status_desc_done', 'Bagus! Progres tugasmu sudah tercatat selesai.') : t('detail_task_status_desc_pending', 'Klik tombol di bawah setelah kamu menyelesaikan tugas.')}</span>
             </div>
           </div>
           <button type="button" class="detail-task-cta-btn ${isDone ? 'completed-btn' : 'action-btn'}" id="modalToggleTaskBtn">
             <i class="fa-solid ${isDone ? 'fa-rotate-left' : 'fa-check'}"></i>
-            <span>${isDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
+            <span>${isDone ? t('detail_task_cta_done', 'Tandai Belum Selesai') : t('detail_task_cta_pending', 'Tandai Selesai Sekarang')}</span>
           </button>
         </div>
       ` : ''}
@@ -2491,7 +2525,7 @@
       if (!modal.classList.contains('is-open')) {
         resetZoom(false);
         if (detailInactivityTimer) clearTimeout(detailInactivityTimer);
-        detailBox.classList.remove('controls-hidden', 'info-collapsed');
+        detailBox.classList.remove('controls-hidden', 'info-collapsed', 'is-viewer-zoomed', 'has-thumbs');
         if (detailSheetBackdrop) detailSheetBackdrop.classList.remove('is-active');
         if (infoSection) infoSection.classList.remove('is-info-hidden', 'is-drawer-open');
         const waToggleInfoBtn = document.getElementById('waToggleInfoBtn');
@@ -2674,10 +2708,10 @@
         waHeaderAvatar.style.background = subjAccent || '#202c33';
       }
       if (waHeaderTitle) {
-        waHeaderTitle.textContent = card.big_title || card.title || 'Tanpa Judul';
+        waHeaderTitle.textContent = card.big_title || card.title || (window.ELearnizI18n && window.ELearnizI18n.getLanguage() === 'en' ? 'Untitled' : 'Tanpa Judul');
       }
       if (waHeaderSub) {
-        waHeaderSub.textContent = [subj ? subj.name : null, card.small || dueLabel].filter(Boolean).join(' · ') || 'Lampiran Berkas';
+        waHeaderSub.textContent = [subj ? subj.name : null, card.small || dueLabel].filter(Boolean).join(' · ') || t('detail_attachments_title', 'Lampiran Berkas');
       }
       if (waDownloadBtn) {
         const initialUrl = photos[photoIndex] || photos[0];
@@ -2747,14 +2781,14 @@
           const iconCircle = taskCard.querySelector('.detail-task-icon-circle i');
           if (iconCircle) iconCircle.className = `fa-solid ${updatedIsDone ? 'fa-circle-check' : 'fa-list-check'}`;
           const title = taskCard.querySelector('.task-card-title');
-          if (title) title.textContent = updatedIsDone ? 'Tugas Telah Selesai' : 'Status Pengerjaan Tugas';
+          if (title) title.textContent = updatedIsDone ? t('detail_task_status_title_done', 'Tugas Telah Selesai') : t('detail_task_status_title_pending', 'Status Pengerjaan Tugas');
           const caption = taskCard.querySelector('.task-card-caption');
-          if (caption) caption.textContent = updatedIsDone ? 'Bagus! Progres tugasmu sudah tercatat selesai.' : 'Klik tombol di bawah setelah kamu menyelesaikan tugas.';
+          if (caption) caption.textContent = updatedIsDone ? t('detail_task_status_desc_done', 'Bagus! Progres tugasmu sudah tercatat selesai.') : t('detail_task_status_desc_pending', 'Klik tombol di bawah setelah kamu menyelesaikan tugas.');
         }
         modalBtn.className = `detail-task-cta-btn ${updatedIsDone ? 'completed-btn' : 'action-btn'}`;
         modalBtn.innerHTML = `
           <i class="fa-solid ${updatedIsDone ? 'fa-rotate-left' : 'fa-check'}"></i>
-          <span>${updatedIsDone ? 'Tandai Belum Selesai' : 'Tandai Selesai Sekarang'}</span>
+          <span>${updatedIsDone ? t('detail_task_cta_done', 'Tandai Belum Selesai') : t('detail_task_cta_pending', 'Tandai Selesai Sekarang')}</span>
         `;
       });
     }
@@ -3195,8 +3229,8 @@
 
     const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
     document.getElementById('cardFormTitle').textContent = isAnnouncement
-      ? t('modal_kind_announcement', 'Tambah Pengumuman Kelas')
-      : (isTask ? t('tasks_page_title', 'Tambah Tugas Baru') : t('materials_page_title', 'Tambah Materi Pelajaran'));
+      ? t('modal_announcement_create_title', 'Tambah Pengumuman Kelas')
+      : (isTask ? t('modal_task_create_title', 'Tambah Tugas Baru') : t('modal_material_create_title', 'Tambah Materi Pelajaran'));
     document.getElementById('cfId').value = '';
     document.getElementById('cfKind').value = kind || 'subject';
     document.getElementById('cfSubjectGroup').style.display = isAnnouncement ? 'none' : 'flex';
@@ -3220,7 +3254,8 @@
   }
 
   function openEditCardModal(card) {
-    document.getElementById('cardFormTitle').textContent = 'Edit Konten';
+    const t = (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t : (k, fb) => fb;
+    document.getElementById('cardFormTitle').textContent = t('modal_edit_title', 'Edit Konten');
     document.getElementById('cfId').value = card.id;
     document.getElementById('cfKind').value = card.kind || 'subject';
     document.getElementById('cfSubjectGroup').style.display = card.kind === 'announcement' ? 'none' : 'flex';

@@ -6275,7 +6275,11 @@ header#mainHeader {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding-bottom 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-detail-box:not(.text-only-mode).has-thumbs .detail-media-section {
+    padding-bottom: 74px;
   }
 
   .glass-detail-box:not(.text-only-mode) .slider-slide img {
@@ -6320,7 +6324,9 @@ header#mainHeader {
 
   /* WhatsApp Bottom Thumbnail Strip */
   .wa-thumb-strip {
-    position: relative;
+    position: absolute;
+    bottom: 0;
+    left: 0;
     height: 74px;
     width: calc(100vw - 390px);
     margin-left: 390px;
@@ -6331,12 +6337,15 @@ header#mainHeader {
     justify-content: center;
     gap: 8px;
     padding: 8px 1.5rem;
-    flex-shrink: 0;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
     z-index: 35;
-    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, visibility 0.32s, width 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .wa-thumb-strip::-webkit-scrollbar {
@@ -6413,7 +6422,7 @@ header#mainHeader {
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, visibility 0.28s;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, visibility 0.32s;
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
   }
 
@@ -6507,19 +6516,30 @@ header#mainHeader {
     pointer-events: none;
   }
 
-  /* Zoom Mode (WhatsApp Web style: hide left info section & thumbnail strip, expand media full width) */
-  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-info-section {
-    display: none !important;
+  /* Zoom Mode (WhatsApp Web style: slide out left info section & thumbnail strip, expand media full width) */
+  .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-info-section,
+  .modal-backdrop.open .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-info-section,
+  .modal-backdrop.is-open .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-info-section {
+    transform: translate3d(-105%, 0, 0) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, visibility 0.32s;
   }
 
   .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .detail-media-section {
     width: 100vw !important;
     margin-left: 0 !important;
-    transition: none !important;
+    padding-bottom: 0 !important;
+    transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding-bottom 0.32s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-thumb-strip {
-    display: none !important;
+    transform: translateY(100%) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, visibility 0.32s, width 0.32s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .glass-detail-box:not(.text-only-mode).is-viewer-zoomed .wa-top-header {

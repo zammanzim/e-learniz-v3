@@ -109,6 +109,7 @@
     const now = new Date();
     const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
     const T = window.ELearnizTime;
+    const lang = (window.ELearnizI18n && window.ELearnizI18n.getLanguage()) === 'en' ? 'en-US' : 'id-ID';
     const formatted = T
       ? T.formatDate(due, {
           weekday: 'short',
@@ -117,16 +118,17 @@
           hour: '2-digit',
           minute: '2-digit'
         })
-      : due.toLocaleDateString('id-ID', {
+      : due.toLocaleDateString(lang, {
           weekday: 'short',
           day: 'numeric',
           month: 'short',
           hour: '2-digit',
           minute: '2-digit'
         });
-    if (diffHours < 0) return `Terlewat · ${formatted}`;
-    if (diffHours <= 36) return `Segera · ${formatted}`;
-    return `Tenggat · ${formatted}`;
+    const t = (k, fb) => (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t(k, fb) : fb;
+    if (diffHours < 0) return `${t('due_overdue', 'Terlewat')} · ${formatted}`;
+    if (diffHours <= 36) return `${t('due_urgent', 'Segera')} · ${formatted}`;
+    return `${t('card_due_prefix', 'Tenggat')} · ${formatted}`;
   }
 
   function computeTaskStatusClass(card, isDone) {
@@ -226,9 +228,10 @@
 
     const T = window.ELearnizTime;
     const selectedDate = T ? T.weekdayDate(activeDayNum) : new Date();
+    const currentLang = (window.ELearnizI18n && window.ELearnizI18n.getLanguage()) || 'id';
     const dateFormatted = T
       ? T.formatDate(selectedDate, { day: 'numeric', month: 'long', year: 'numeric' })
-      : selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      : selectedDate.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const periods = Array.isArray(dayObj.periods) ? dayObj.periods : [];
     const picketList = Array.isArray(dayObj.picket_members) ? dayObj.picket_members : [];
@@ -249,19 +252,19 @@
           <div class="header-right-group">
             ${isAdmin ? `
               <div class="dc-edit-actions" id="dcEditActions" style="display:none;">
-                <button type="button" class="action-btn cancel" id="dcCancelEditBtn" title="Batal Edit">
+                <button type="button" class="action-btn cancel" id="dcCancelEditBtn" title="${t('modal_btn_cancel', 'Batal Edit')}">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
-                <button type="button" class="action-btn save" id="dcSaveEditBtn" title="Simpan Perubahan">
+                <button type="button" class="action-btn save" id="dcSaveEditBtn" title="${t('modal_btn_save', 'Simpan Perubahan')}">
                   <i class="fa-solid fa-check"></i>
                 </button>
               </div>
-              <button type="button" class="action-btn edit" id="dcToggleEditBtn" title="Edit Daily Card Hari Ini">
+              <button type="button" class="action-btn edit" id="dcToggleEditBtn" title="Edit Daily Card">
                 <i class="fa-solid fa-pen"></i>
               </button>
             ` : ''}
 
-            <div class="task-shortcut-box" id="dcTaskShortcut" title="Lihat Daftar Tugas">
+            <div class="task-shortcut-box" id="dcTaskShortcut" title="${t('dc_task_shortcut_title', 'Lihat Daftar Tugas')}">
               <div class="task-badge ${pendingTaskCount === 0 ? 'zero' : ''}">${pendingTaskCount}</div>
               <i class="fa-solid fa-list-check"></i>
               <span>${t('dc_task_shortcut', 'TUGAS')}</span>
@@ -319,7 +322,7 @@
           </div>
           <div class="final-timeline" id="dcTimelineList">
             ${periods.length === 0 ? `
-              <div class="dc-empty-timeline" style="font-size:0.82rem;color:var(--text-muted);padding:0.4rem 0;">Belum ada jadwal pelajaran di hari ini.</div>
+              <div class="dc-empty-timeline" style="font-size:0.82rem;color:var(--text-muted);padding:0.4rem 0;">${t('dc_no_schedule', 'Belum ada jadwal pelajaran di hari ini.')}</div>
             ` : periods.map((p) => {
               const timeStr = p.time_range || `${p.start_time || ''} - ${p.end_time || ''}`;
               const matchedSubject = findSubject(subjects, p.subject_id, p.subject_name);
@@ -329,7 +332,7 @@
                   <div class="tl-time-final editable-text" data-type="time" title="Waktu (contoh: 07.00 - 08.30)">${escapeHtml(timeStr)}</div>
                   <div class="tl-marker-final"></div>
                   <div class="tl-subject-final editable-text ${matchedSubject ? 'clickable' : ''}" data-type="subject" ${matchedSubject ? `data-goto-subject="${matchedSubject.id}"` : ''} title="Nama Mapel">
-                    ${escapeHtml(p.subject_name || (matchedSubject && matchedSubject.name) || 'Mata Pelajaran')}
+                    ${escapeHtml(p.subject_name || (matchedSubject && matchedSubject.name) || t('nav_subjects_section', 'Mata Pelajaran'))}
                     ${p.room ? `<span class="tl-room-tag">${escapeHtml(p.room)}</span>` : ''}
                   </div>
                   <button type="button" class="btn-del-inline" data-del="lesson" title="Hapus Baris"><i class="fa-solid fa-xmark"></i></button>
@@ -337,7 +340,7 @@
               `;
             }).join('')}
           </div>
-          <button type="button" class="btn-add-inline" id="btnAddLesson">+ Tambah Jadwal Pelajaran</button>
+          <button type="button" class="btn-add-inline" id="btnAddLesson">+ ${t('dc_schedule', 'Tambah Jadwal Pelajaran')}</button>
         </div>
 
         <div class="final-spacer"></div>
@@ -349,7 +352,7 @@
           </div>
           <div class="picket-grid-big" id="dcPicketList">
             ${picketList.length === 0
-              ? `<div class="picket-pill"><span class="editable-text" data-type="picket">Belum diatur</span><button type="button" class="btn-del-inline" data-del="picket"><i class="fa-solid fa-xmark"></i></button></div>`
+              ? `<div class="picket-pill"><span class="editable-text" data-type="picket">${t('dc_no_chores', 'Belum diatur')}</span><button type="button" class="btn-del-inline" data-del="picket"><i class="fa-solid fa-xmark"></i></button></div>`
               : picketList.map((member) => `
                 <div class="picket-pill">
                   <span class="editable-text" data-type="picket">${escapeHtml(member)}</span>
@@ -357,7 +360,7 @@
                 </div>
               `).join('')}
           </div>
-          <button type="button" class="btn-add-inline" id="btnAddPicket">+ Tambah Orang Piket</button>
+          <button type="button" class="btn-add-inline" id="btnAddPicket">+ ${t('dc_chores', 'Tambah Orang Piket')}</button>
         </div>
 
         <div class="final-watermark">E-LEARNIZ DAILY SYSTEM</div>
@@ -792,9 +795,9 @@
           ${smallText ? `<small><i class="fa-regular fa-clock"></i> ${escapeHtml(smallText)}</small>` : ''}
 
           ${isTaskCard ? `
-            <button type="button" class="task-btn ${isDone ? 'completed' : ''}" data-toggle-task="${card.id}" title="${isDone ? 'Klik untuk tandai belum selesai' : 'Klik untuk tandai selesai'}">
+            <button type="button" class="task-btn ${isDone ? 'completed' : ''}" data-toggle-task="${card.id}" title="${isDone ? t('card_task_tooltip_done', 'Klik untuk tandai belum selesai') : t('card_task_tooltip_pending', 'Klik untuk tandai selesai')}">
               <i class="${isDone ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle-check'}"></i>
-              <span>${isDone ? 'Selesai' : 'Tandai Selesai'}</span>
+              <span>${isDone ? t('card_task_done', 'Selesai') : t('card_task_mark_done', 'Tandai Selesai')}</span>
             </button>
           ` : ''}
         </article>
@@ -865,20 +868,25 @@
      ------------------------------------------------------------------------ */
   function renderUserTaskProfile(container, currentUser, totalTasks, completedTasks) {
     if (!container) return;
+    const t = (k, fb) => (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t(k, fb) : fb;
+    const fmt = (k, p, fb) => (window.ELearnizI18n && window.ELearnizI18n.format) ? window.ELearnizI18n.format(k, p, fb) : fb;
+
     const name = currentUser
       ? (currentUser.display_name || currentUser.username || 'Siswa')
-      : 'Tamu Kelas';
+      : t('header_guest_name', 'Tamu Kelas');
     const initial = name.charAt(0).toUpperCase();
     const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    let caption = 'Yuk mulai cicil tugasmu satu per satu biar makin ringan! 🚀';
+    let caption = t('tasks_profile_caption_start', 'Yuk mulai cicil tugasmu satu per satu biar makin ringan! 🚀');
     if (totalTasks === 0) {
-      caption = 'Asyik! Belum ada tugas kelas yang aktif saat ini. 🎉';
+      caption = t('tasks_profile_caption_empty', 'Asyik! Belum ada tugas kelas yang aktif saat ini. 🎉');
     } else if (pct === 100) {
-      caption = 'Luar biasa! Kamu sudah menyelesaikan semua tugas kelas! 🏆✨';
+      caption = t('tasks_profile_caption_all_done', 'Luar biasa! Kamu sudah menyelesaikan semua tugas kelas! 🏆✨');
     } else if (pct >= 50) {
-      caption = 'Mantap! Lebih dari separuh tugas sudah beres, semangat! 💪';
+      caption = t('tasks_profile_caption_half', 'Mantap! Lebih dari separuh tugas sudah beres, semangat! 💪');
     }
+
+    const countText = fmt('tasks_profile_count_format', { completed: completedTasks, total: totalTasks }, `Kamu sudah menyelesaikan ${completedTasks} dari ${totalTasks} tugas`);
 
     container.innerHTML = `
       <div class="user-task-profile-card">
@@ -887,7 +895,7 @@
           <div class="utp-info">
             <div class="utp-name">${escapeHtml(name)}</div>
             <div class="utp-status-row">
-              <span>Status Penyelesaian:</span>
+              <span>${t('tasks_profile_title', 'Status Penyelesaian')}:</span>
               <strong>${completedTasks}/${totalTasks} (${pct}%)</strong>
             </div>
           </div>
@@ -896,7 +904,7 @@
         <div class="utp-progress-track">
           <div class="utp-progress-fill" style="width: ${pct}%;"></div>
           <div class="utp-progress-text">
-            Kamu sudah menyelesaikan ${completedTasks} dari ${totalTasks} tugas
+            ${escapeHtml(countText)}
           </div>
         </div>
 
@@ -910,17 +918,23 @@
      ------------------------------------------------------------------------ */
   function renderUserMateriProfile(container, currentUser, totalMateri, subjectsCount) {
     if (!container) return;
+    const t = (k, fb) => (window.ELearnizI18n && window.ELearnizI18n.t) ? window.ELearnizI18n.t(k, fb) : fb;
+
     const name = currentUser
       ? (currentUser.display_name || currentUser.username || 'Siswa')
-      : 'Tamu Kelas';
+      : t('header_guest_name', 'Tamu Kelas');
     const initial = name.charAt(0).toUpperCase();
 
-    let caption = 'Jelajahi dan pelajari materi kelas dari semua mata pelajaran kapan saja! 📖';
+    let caption = t('materials_profile_caption_normal', 'Jelajahi dan pelajari materi kelas dari semua mata pelajaran kapan saja! 📖');
     if (totalMateri === 0) {
-      caption = 'Belum ada materi pembelajaran yang diunggah saat ini. Tetap semangat! 📚';
+      caption = t('materials_profile_caption_empty', 'Belum ada materi pembelajaran yang diunggah saat ini. Tetap semangat! 📚');
     } else if (totalMateri >= 10) {
-      caption = 'Banyak materi tersedia! Yuk perdalam pemahamanmu dengan membaca modul & catatan guru. 🌟';
+      caption = t('materials_profile_caption_many', 'Banyak materi tersedia! Yuk perdalam pemahamanmu dengan membaca modul & catatan guru. 🌟');
     }
+
+    const materiActiveText = (window.ELearnizI18n && window.ELearnizI18n.getLanguage() === 'en')
+      ? `${totalMateri} active materials from ${subjectsCount} subjects`
+      : `${totalMateri} materi aktif dari ${subjectsCount} mata pelajaran`;
 
     container.innerHTML = `
       <div class="user-task-profile-card">
@@ -929,8 +943,8 @@
           <div class="utp-info">
             <div class="utp-name">${escapeHtml(name)}</div>
             <div class="utp-status-row">
-              <span>Koleksi Materi:</span>
-              <strong>${totalMateri} Materi</strong>
+              <span>${t('materials_profile_title', 'Koleksi Materi')}:</span>
+              <strong>${totalMateri} ${t('materials_profile_total_label', 'Materi')}</strong>
             </div>
           </div>
         </div>
@@ -938,7 +952,7 @@
         <div class="utp-progress-track sic-progress-track">
           <div class="utp-progress-fill sic-progress-fill" style="width: 100%;"></div>
           <div class="utp-progress-text">
-            ${totalMateri} materi aktif dari ${subjectsCount} mata pelajaran
+            ${escapeHtml(materiActiveText)}
           </div>
         </div>
 
